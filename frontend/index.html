@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>PRANAMS</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div id="app">
+  <div class="brand">
+    <img class="brand-logo" src="assets/sssct-logo.png" alt="Sri Sathya Sai Central Trust logo"
+         onerror="this.remove(); document.getElementById('brand-fallback').style.display='flex';">
+    <div class="brand-fallback" id="brand-fallback" style="display:none">SSSCT</div>
+    <div class="brand-text">
+      <span class="sub">Sri Sathya Sai Central Trust</span>
+      <h1>PRANAMS</h1>
+      <span class="full-form">Prasanthi Nilayam Ashram Management System</span>
+    </div>
+  </div>
+
+  <div class="lang-row">
+    <button class="lang-chip" data-lang="en">EN</button>
+    <button class="lang-chip" data-lang="te">తెలుగు</button>
+    <button class="lang-chip" data-lang="hi">हिन्दी</button>
+  </div>
+
+  <div class="search-row">
+    <div class="search">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+      <input id="search-input" placeholder="Search water, toilets, Mandir…" />
+    </div>
+  </div>
+
+  <div class="cat-grid" id="cat-grid"></div>
+
+  <div id="map"></div>
+
+  <span class="sec-title" id="near-you-title">Near you</span>
+  <div class="poi-list" id="poi-list"></div>
+</div>
+
+<div class="sheet-backdrop" id="sheet-backdrop">
+  <div class="sheet">
+    <div class="drag-handle"></div>
+    <div class="sheet-head">
+      <span class="badge" id="sheet-badge"></span>
+      <h2 id="sheet-name"></h2>
+      <span class="dt" id="sheet-dist"></span>
+    </div>
+    <span class="status-pill" id="sheet-status"></span>
+    <p class="sheet-desc" id="sheet-desc"></p>
+    <button class="cta" id="sheet-directions">Start directions</button>
+    <button class="ghost-btn" id="sheet-close">Close</button>
+    <span class="foot-note" id="sheet-note"></span>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

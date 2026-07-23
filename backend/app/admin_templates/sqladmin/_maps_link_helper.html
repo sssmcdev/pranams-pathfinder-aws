@@ -1,0 +1,59 @@
+<script>
+(function () {
+  function wireMapsUrlField() {
+    var field = document.getElementById("maps_url");
+    if (!field || field.dataset.autofillWired) return;
+    field.dataset.autofillWired = "1";
+    field.placeholder = "Paste a Google Maps link (or '14.1666, 77.8033') to fill lat/lon automatically";
+
+    var status = document.createElement("div");
+    status.className = "form-text";
+    status.id = "maps-url-status";
+    field.insertAdjacentElement("afterend", status);
+
+    function tryFill() {
+      var value = field.value.trim();
+      if (!value) {
+        status.textContent = "";
+        return;
+      }
+      status.textContent = "Looking up coordinates…";
+      status.className = "form-text";
+      fetch("/admin-tools/parse-maps-url?url=" + encodeURIComponent(value), { credentials: "same-origin" })
+        .then(function (res) {
+          if (!res.ok) {
+            return res.json().then(function (body) {
+              throw new Error(body.detail || "Could not parse that link.");
+            });
+          }
+          return res.json();
+        })
+        .then(function (data) {
+          var latField = document.getElementById("lat");
+          var lonField = document.getElementById("lon");
+          if (latField) latField.value = data.lat;
+          if (lonField) lonField.value = data.lon;
+          status.textContent = "Filled: " + data.lat + ", " + data.lon;
+          status.className = "form-text text-success";
+        })
+        .catch(function (err) {
+          status.textContent = err.message;
+          status.className = "form-text text-danger";
+        });
+    }
+
+    field.addEventListener("blur", tryFill);
+    field.addEventListener("paste", function () {
+      setTimeout(tryFill, 50); // let the pasted text land in field.value first
+    });
+  }
+
+  // This script tag is injected above the form markup, so the #maps_url
+  // field doesn't exist in the DOM yet at execution time — wait for it.
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", wireMapsUrlField);
+  } else {
+    wireMapsUrlField();
+  }
+})();
+</script>
