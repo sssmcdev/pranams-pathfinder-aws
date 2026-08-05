@@ -35,14 +35,12 @@
 
   <div class="cat-grid" id="cat-grid"></div>
 
-  <div id="map"></div>
-
   <span class="sec-title" id="near-you-title">Near you</span>
   <div class="poi-list" id="poi-list"></div>
-</div>
 
 <div class="sheet-backdrop" id="sheet-backdrop">
   <div class="sheet">
+    <img class="sheet-photo" id="sheet-photo" style="display:none">
     <div class="drag-handle"></div>
     <div class="sheet-head">
       <span class="badge" id="sheet-badge"></span>
@@ -51,10 +49,43 @@
     </div>
     <span class="status-pill" id="sheet-status"></span>
     <p class="sheet-desc" id="sheet-desc"></p>
+
+    <div class="entrance-picker" id="entrance-picker" style="display:none">
+      <span class="entrance-title" id="entrance-title">Choose an entrance</span>
+      <div id="entrance-list"></div>
+    </div>
+
     <button class="cta" id="sheet-directions">Start directions</button>
     <button class="ghost-btn" id="sheet-close">Close</button>
-    <span class="foot-note" id="sheet-note"></span>
   </div>
+</div>
+
+<div class="sheet-backdrop" id="type-picker-backdrop">
+  <div class="sheet">
+    <div class="drag-handle"></div>
+    <div class="sheet-head">
+      <h2 id="type-picker-title">What are you looking for?</h2>
+    </div>
+    <div class="cat-grid" id="type-picker-grid"></div>
+    <button class="ghost-btn" id="type-picker-close">Close</button>
+  </div>
+</div>
+
+<div class="directions-view" id="directions-view">
+  <div class="directions-header">
+    <button class="back-btn" id="directions-back" aria-label="Back">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 5l-7 7 7 7"/></svg>
+    </button>
+    <div class="directions-title">
+      <span class="badge" id="directions-badge"></span>
+      <h2 id="directions-name"></h2>
+    </div>
+    <span class="dt" id="directions-dist"></span>
+  </div>
+  <div id="directions-map"></div>
+  <a class="cta directions-external" id="directions-external" target="_blank" rel="noopener">Open in Google Maps</a>
+</div>
+
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>

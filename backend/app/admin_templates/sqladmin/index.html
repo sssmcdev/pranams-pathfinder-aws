@@ -1,0 +1,7 @@
+{% extends "sqladmin_original/index.html" %}
+{% block content %}
+<meta http-equiv="refresh" content="0; url={{ url_for('admin:list', identity='poi-record') }}">
+<p>Redirecting to Points of Interest&hellip;
+  <a href="{{ url_for('admin:list', identity='poi-record') }}">Click here</a> if you're not redirected automatically.
+</p>
+{% endblock %}

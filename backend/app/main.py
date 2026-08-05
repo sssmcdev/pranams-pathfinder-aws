@@ -2,17 +2,15 @@ import os
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 from sqladmin import Admin
 from starlette.middleware.sessions import SessionMiddleware
 
-from app.admin import AdminAuth, POIAdmin, SESSION_SECRET
+from app.admin import AdminAuth, MediaAssetAdmin, POIAdmin, SESSION_SECRET, SubPlaceAdmin
 from app.db import engine
 from app.routers import admin_tools, pois
 from app.seed import init_db_and_seed
 
 ADMIN_TEMPLATES_DIR = os.path.join(os.path.dirname(__file__), "admin_templates")
-FRONTEND_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "frontend")
 
 # Run at import time, not via ASGI lifespan — a2wsgi (needed to host this
 # ASGI app on a WSGI-only host like PythonAnywhere) never sends a lifespan
@@ -39,14 +37,10 @@ admin = Admin(
     templates_dir=ADMIN_TEMPLATES_DIR,
 )
 admin.add_view(POIAdmin)
+admin.add_view(SubPlaceAdmin)
+admin.add_view(MediaAssetAdmin)
 
 
 @app.get("/health")
-def health():
+async def health():
     return {"status": "ok"}
-
-
-# Registered last on purpose — "/" would otherwise swallow every request
-# (including /pois, /admin, /health) since Starlette matches mounts by
-# prefix in registration order, not by specificity.
-app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")

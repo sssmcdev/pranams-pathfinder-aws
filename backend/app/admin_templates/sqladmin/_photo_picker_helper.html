@@ -1,0 +1,96 @@
+<script>
+(function () {
+  function wirePhotoPicker() {
+    var field = document.getElementById("photo_url");
+    if (!field || field.dataset.pickerWired) return;
+    field.dataset.pickerWired = "1";
+
+    var wrap = document.createElement("div");
+    wrap.className = "mb-3 card";
+    wrap.innerHTML =
+      '<div class="card-body">' +
+      '<label class="form-label">Photo gallery — click one to use it, or upload a new one</label>' +
+      '<div id="photo-gallery" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;"></div>' +
+      '<div class="input-group">' +
+      '<input type="file" id="photo-upload-input" class="form-control" accept="image/png,image/jpeg,image/webp,image/gif">' +
+      '<button type="button" id="photo-upload-btn" class="btn btn-primary">Upload</button>' +
+      "</div>" +
+      '<div id="photo-upload-status" class="form-text"></div>' +
+      "</div>";
+    field.closest(".mb-3, .form-group").insertAdjacentElement("beforebegin", wrap);
+
+    var gallery = document.getElementById("photo-gallery");
+    var status = document.getElementById("photo-upload-status");
+
+    function highlightSelected() {
+      gallery.querySelectorAll("img").forEach(function (img) {
+        img.style.outline = img.dataset.url === field.value ? "3px solid var(--tblr-primary, #206bc4)" : "none";
+      });
+    }
+
+    function loadGallery() {
+      fetch("/admin-tools/media", { credentials: "same-origin" })
+        .then(function (res) {
+          return res.json();
+        })
+        .then(function (assets) {
+          gallery.innerHTML = "";
+          assets.forEach(function (asset) {
+            var img = document.createElement("img");
+            img.src = "/" + asset.url;
+            img.title = asset.name;
+            img.dataset.url = asset.url;
+            img.style.cssText = "height:64px;width:64px;object-fit:cover;border-radius:8px;cursor:pointer;";
+            img.addEventListener("click", function () {
+              field.value = asset.url;
+              highlightSelected();
+            });
+            gallery.appendChild(img);
+          });
+          highlightSelected();
+        });
+    }
+
+    document.getElementById("photo-upload-btn").addEventListener("click", function () {
+      var input = document.getElementById("photo-upload-input");
+      if (!input.files.length) {
+        status.textContent = "Choose an image file first.";
+        status.className = "form-text text-danger";
+        return;
+      }
+      var formData = new FormData();
+      formData.append("file", input.files[0]);
+      status.textContent = "Uploading…";
+      status.className = "form-text";
+      fetch("/admin-tools/media", { method: "POST", body: formData, credentials: "same-origin" })
+        .then(function (res) {
+          if (!res.ok) {
+            return res.json().then(function (body) {
+              throw new Error(body.detail || "Upload failed.");
+            });
+          }
+          return res.json();
+        })
+        .then(function (asset) {
+          field.value = asset.url;
+          status.textContent = "Uploaded — selected.";
+          status.className = "form-text text-success";
+          input.value = "";
+          loadGallery();
+        })
+        .catch(function (err) {
+          status.textContent = err.message;
+          status.className = "form-text text-danger";
+        });
+    });
+
+    loadGallery();
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", wirePhotoPicker);
+  } else {
+    wirePhotoPicker();
+  }
+})();
+</script>

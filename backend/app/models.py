@@ -11,6 +11,7 @@ class Category(str, Enum):
     canteens_shopping = "canteens_shopping"
     library = "library"
     offices = "offices"
+    gates = "gates"
 
 
 CATEGORY_LABELS: dict[str, str] = {
@@ -20,7 +21,47 @@ CATEGORY_LABELS: dict[str, str] = {
     "water_restrooms": "Water & Restrooms",
     "canteens_shopping": "Canteens, Refreshments & Shopping",
     "library": "Library & Book Stalls",
-    "offices": "Offices - PRO, Central Trust, Sadhana Trust, Police Station",
+    "offices": "Offices - PRO, Central Trust, Sadhana Trust, Police Station, Security Office",
+    "gates": "Entry/Exit Gates",
+}
+
+# Facility Type — a finer label *within* a category, only meaningful for
+# categories that bundle more than one distinct kind of place together
+# (e.g. Water & Restrooms covers both taps and toilets). Small, fixed
+# vocabulary — labels are hand-maintained per language, like Category and
+# Gender, not auto-translated per record.
+CATEGORY_FACILITY_TYPES: dict[str, list[str]] = {
+    "mandir": [],
+    "accommodation": ["dormitory", "room", "guest_house"],
+    "spiritual_places": ["auditorium", "temple", "convention_hall"],
+    "water_restrooms": ["water", "restroom"],
+    "canteens_shopping": ["canteen", "refreshments_snacks", "shopping", "coffee_kiosk"],
+    "library": ["library", "books_photos"],
+    "offices": ["pro", "central_trust", "sadhana_trust", "police_station", "security_office"],
+    "gates": ["gate"],
+}
+
+FACILITY_TYPE_LABELS: dict[str, str] = {
+    "dormitory": "Dormitory",
+    "room": "Room",
+    "guest_house": "Guest House",
+    "auditorium": "Auditorium",
+    "temple": "Temple",
+    "convention_hall": "Convention Hall",
+    "water": "Water",
+    "restroom": "Restroom",
+    "canteen": "Canteen",
+    "refreshments_snacks": "Refreshments & Snacks",
+    "shopping": "Shopping",
+    "coffee_kiosk": "Coffee Kiosk",
+    "library": "Library",
+    "books_photos": "Books & Photos",
+    "pro": "PRO",
+    "central_trust": "Central Trust",
+    "sadhana_trust": "Sadhana Trust",
+    "police_station": "Police Station",
+    "security_office": "Security Office",
+    "gate": "Gate",
 }
 
 
@@ -30,12 +71,23 @@ class Gender(str, Enum):
     unisex = "unisex"
 
 
+class SubPlace(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    name: str
+    lat: float
+    lon: float
+    gender: Gender | None = None
+
+
 class POI(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: str
     name: str
     category: Category
+    facility_type: str | None = None
     lat: float
     lon: float
     description: str | None = None
@@ -45,8 +97,8 @@ class POI(BaseModel):
     accessible: bool = False
     gender: Gender | None = None
     capacity_note: str | None = None
-    maintained_by: str | None = None
     photo_url: str | None = None
+    sub_places: list[SubPlace] = []
 
 
 class POIWithDistance(POI):

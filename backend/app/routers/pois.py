@@ -26,11 +26,15 @@ def localize(record: POIRecord, lang: Lang) -> POI:
             translated = getattr(record, f"{field}_{lang.value}", None)
             if translated:
                 setattr(poi, field, translated)
+        for sub_place, sub_record in zip(poi.sub_places, record.sub_places):
+            translated_name = getattr(sub_record, f"name_{lang.value}", None)
+            if translated_name:
+                sub_place.name = translated_name
     return poi
 
 
 @router.get("", response_model=list[POI])
-def list_pois(
+async def list_pois(
     category: Category | None = None,
     q: str | None = Query(default=None, description="Search POI names"),
     lang: Lang = Lang.en,
@@ -46,7 +50,7 @@ def list_pois(
 
 
 @router.get("/nearby", response_model=list[POIWithDistance])
-def nearby(
+async def nearby(
     lat: float,
     lon: float,
     category: Category | None = None,
@@ -67,7 +71,7 @@ def nearby(
 
 
 @router.get("/{poi_id}", response_model=POI)
-def get_poi(poi_id: str, lang: Lang = Lang.en, db: Session = Depends(get_db)):
+async def get_poi(poi_id: str, lang: Lang = Lang.en, db: Session = Depends(get_db)):
     poi = db.get(POIRecord, poi_id)
     if poi is None or not poi.active:
         raise HTTPException(status_code=404, detail="POI not found")

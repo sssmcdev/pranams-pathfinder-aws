@@ -1,0 +1,45 @@
+<script>
+(function () {
+  // Keep this in sync with app/models.py CATEGORY_FACILITY_TYPES.
+  var CATEGORY_FACILITY_TYPES = {
+    mandir: [],
+    accommodation: ["dormitory", "room", "guest_house"],
+    spiritual_places: ["auditorium", "temple", "convention_hall"],
+    water_restrooms: ["water", "restroom"],
+    canteens_shopping: ["canteen", "refreshments_snacks", "shopping", "coffee_kiosk"],
+    library: ["library", "books_photos"],
+    offices: ["pro", "central_trust", "sadhana_trust", "police_station", "security_office"],
+    gates: ["gate"],
+  };
+
+  function wireFacilityType() {
+    var categoryField = document.getElementById("category");
+    var typeField = document.getElementById("facility_type");
+    if (!categoryField || !typeField || typeField.dataset.scopeWired) return;
+    typeField.dataset.scopeWired = "1";
+
+    function applyScope() {
+      var allowed = CATEGORY_FACILITY_TYPES[categoryField.value] || [];
+      var currentValue = typeField.value;
+      var stillValid = false;
+      Array.prototype.forEach.call(typeField.options, function (opt) {
+        if (opt.value === "") return; // always keep the blank option visible
+        var show = allowed.indexOf(opt.value) !== -1;
+        opt.hidden = !show;
+        opt.disabled = !show;
+        if (show && opt.value === currentValue) stillValid = true;
+      });
+      if (currentValue !== "" && !stillValid) typeField.value = "";
+    }
+
+    categoryField.addEventListener("change", applyScope);
+    applyScope();
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", wireFacilityType);
+  } else {
+    wireFacilityType();
+  }
+})();
+</script>
