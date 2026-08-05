@@ -7,7 +7,6 @@ from wtforms import SelectField
 
 from app.db_models import MediaAsset, POIRecord, SubPlace
 from app.models import CATEGORY_FACILITY_TYPES, CATEGORY_LABELS, Category, FACILITY_TYPE_LABELS, Gender
-from app.translate import fill_missing_translations
 
 # The union of every category's facility types, keyed for a per-category
 # scoped dropdown (see admin_templates/sqladmin/_facility_type_helper.html).
@@ -100,19 +99,16 @@ class POIAdmin(ModelView, model=POIRecord):
         "lat": {"placeholder": "Filled in automatically, or enter manually"},
         "lon": {"placeholder": "Filled in automatically, or enter manually"},
         "search_terms": {"placeholder": "Comma-separated words visitors might search, e.g. kiosk, RO water, tap, drinking water"},
-        "name_te": {"placeholder": "Auto-translated from Name on save — edit to override"},
-        "name_hi": {"placeholder": "Auto-translated from Name on save — edit to override"},
-        "description_te": {"placeholder": "Auto-translated from Description on save — edit to override"},
-        "description_hi": {"placeholder": "Auto-translated from Description on save — edit to override"},
-        "opening_hours_te": {"placeholder": "Auto-translated from Opening Hours on save — edit to override"},
-        "opening_hours_hi": {"placeholder": "Auto-translated from Opening Hours on save — edit to override"},
-        "capacity_note_te": {"placeholder": "Auto-translated from Capacity Note on save — edit to override"},
-        "capacity_note_hi": {"placeholder": "Auto-translated from Capacity Note on save — edit to override"},
+        "name_te": {"placeholder": "Telugu translation of Name (optional)"},
+        "name_hi": {"placeholder": "Hindi translation of Name (optional)"},
+        "description_te": {"placeholder": "Telugu translation of Description (optional)"},
+        "description_hi": {"placeholder": "Hindi translation of Description (optional)"},
+        "opening_hours_te": {"placeholder": "Telugu translation of Opening Hours (optional)"},
+        "opening_hours_hi": {"placeholder": "Hindi translation of Opening Hours (optional)"},
+        "capacity_note_te": {"placeholder": "Telugu translation of Capacity Note (optional)"},
+        "capacity_note_hi": {"placeholder": "Hindi translation of Capacity Note (optional)"},
         "photo_url": {"placeholder": "Pick a photo from the gallery above, or paste a URL"},
     }
-
-    async def on_model_change(self, data: dict, model, is_created: bool, request: Request) -> None:
-        fill_missing_translations(data)
 
 
 def _thumbnail(model, attribute) -> str:
@@ -159,11 +155,8 @@ class SubPlaceAdmin(ModelView, model=SubPlace):
         SubPlace.sort_order,
     ]
     form_widget_args = {
-        "name_te": {"placeholder": "Auto-translated from Name on save — edit to override"},
-        "name_hi": {"placeholder": "Auto-translated from Name on save — edit to override"},
+        "name_te": {"placeholder": "Telugu translation of Name (optional)"},
+        "name_hi": {"placeholder": "Hindi translation of Name (optional)"},
         "lat": {"placeholder": "Filled in automatically, or enter manually — the entrance's own point, not the building center"},
         "lon": {"placeholder": "Filled in automatically, or enter manually — the entrance's own point, not the building center"},
     }
-
-    async def on_model_change(self, data: dict, model, is_created: bool, request: Request) -> None:
-        fill_missing_translations(data)
