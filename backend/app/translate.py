@@ -4,7 +4,16 @@
 Network hiccups shouldn't block a save, so failures return None rather than raising.
 """
 
+import socket
+
 from deep_translator import GoogleTranslator
+
+# deep_translator's GoogleTranslator issues a plain requests.get with no
+# timeout and no way to pass one in. Without this, a stalled connection
+# (as opposed to an outright failure, which translate_text already
+# tolerates) hangs the calling thread forever — fatal at import time,
+# since init_db_and_seed() runs there.
+socket.setdefaulttimeout(5)
 
 LANGUAGES = ("te", "hi")  # Telugu, Hindi — English is the source language
 TRANSLATABLE_FIELDS = ("name", "description", "opening_hours", "capacity_note")
