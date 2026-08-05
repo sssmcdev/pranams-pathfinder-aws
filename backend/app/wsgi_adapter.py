@@ -22,7 +22,13 @@ from http import HTTPStatus
 def asgi_to_wsgi(asgi_app):
     def wsgi_app(environ, start_response):
         scope = _build_scope(environ)
-        body = environ["wsgi.input"].read() if environ.get("wsgi.input") else b""
+        # Only read a body when Content-Length says one is coming. Calling
+        # .read() with no size on a bodyless request (e.g. every GET) is
+        # spec-ambiguous — some WSGI servers block waiting for more data
+        # that will never arrive, since a keep-alive socket never signals
+        # EOF on its own. That hung every single request, silently.
+        content_length = environ.get("CONTENT_LENGTH")
+        body = environ["wsgi.input"].read(int(content_length)) if content_length else b""
         state = {"status": 500, "headers": [], "body": bytearray()}
         body_sent = False
 
