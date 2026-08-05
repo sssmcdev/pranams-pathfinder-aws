@@ -1,7 +1,9 @@
 import os
+from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse, Response
 from sqladmin import Admin
 from starlette.middleware.sessions import SessionMiddleware
 
@@ -11,10 +13,25 @@ from app.routers import admin_tools, pois
 from app.seed import init_db_and_seed
 
 ADMIN_TEMPLATES_DIR = os.path.join(os.path.dirname(__file__), "admin_templates")
+FRONTEND_DIR = (Path(__file__).resolve().parent / ".." / ".." / "frontend").resolve()
+FRONTEND_CONTENT_TYPES = {
+    ".html": "text/html; charset=utf-8",
+    ".js": "application/javascript",
+    ".css": "text/css",
+    ".json": "application/json",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".png": "image/png",
+    ".webp": "image/webp",
+    ".gif": "image/gif",
+    ".svg": "image/svg+xml",
+    ".ico": "image/x-icon",
+}
 
-# Run at import time, not via ASGI lifespan — a2wsgi (needed to host this
-# ASGI app on a WSGI-only host like PythonAnywhere) never sends a lifespan
-# event, so anything registered there would silently never run.
+# Run at import time, not via ASGI lifespan — our WSGI adapter (needed to
+# host this ASGI app on a WSGI-only server like PythonAnywhere's uWSGI)
+# never sends a lifespan event, so anything registered there would
+# silently never run.
 init_db_and_seed()
 
 app = FastAPI(title="Prasanthi Nilayam Wayfinder API")
@@ -41,6 +58,38 @@ admin.add_view(SubPlaceAdmin)
 admin.add_view(MediaAssetAdmin)
 
 
+# sqladmin's mount only matches paths with a trailing slash
+# (^/admin/(?P<path>.*)$), so bare "/admin" normally falls through to
+# Starlette's automatic slash-redirect. The catch-all route below would
+# intercept it first and 404 instead, so redirect explicitly.
+@app.get("/admin", include_in_schema=False)
+async def admin_redirect():
+    return RedirectResponse(url="/admin/")
+
+
 @app.get("/health")
 async def health():
     return {"status": "ok"}
+
+
+# Registered last on purpose — "/{path:path}" would otherwise swallow every
+# request (including /pois, /admin, /health) since more specific routes
+# only win if they're registered first.
+#
+# This isn't Starlette's StaticFiles because StaticFiles reads files via
+# anyio's threaded file I/O, which needs real OS threads — unavailable in
+# PythonAnywhere's uWSGI config (see wsgi_adapter.py). Reading the file
+# directly, synchronously, inside an async route runs it on the event
+# loop thread instead, with no thread pool involved. Re-reading from disk
+# on every request (rather than caching at import time) is deliberate too:
+# admin-uploaded photos land in assets/uploads/ after the app has already
+# started, and still need to be servable immediately.
+@app.get("/{path:path}")
+async def frontend(path: str):
+    target = (FRONTEND_DIR / (path or "index.html")).resolve()
+    if target.is_dir():
+        target = target / "index.html"
+    if not target.is_relative_to(FRONTEND_DIR) or not target.is_file():
+        raise HTTPException(status_code=404, detail="Not Found")
+    content_type = FRONTEND_CONTENT_TYPES.get(target.suffix, "application/octet-stream")
+    return Response(content=target.read_bytes(), media_type=content_type)
