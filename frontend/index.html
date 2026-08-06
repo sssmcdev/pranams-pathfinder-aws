@@ -9,6 +9,11 @@
 </head>
 <body>
 <div id="app">
+  <div class="geofence-overlay" id="geofence-overlay">
+    <p class="geofence-text" id="geofence-text">Checking your location…</p>
+    <button class="cta" id="geofence-retry" style="display:none; width:auto; padding:12px 28px;">Retry</button>
+  </div>
+
   <div class="brand">
     <img class="brand-logo" src="assets/sssct-logo.png" alt="Sri Sathya Sai Central Trust logo"
          onerror="this.remove(); document.getElementById('brand-fallback').style.display='flex';">

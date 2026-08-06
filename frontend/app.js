@@ -4,6 +4,12 @@ const SHANTHI_BHAVAN_POS = { lat: 14.1664542, lon: 77.8089405 };
 const PRASANTHI_NILAYAM_CENTER = { lat: 14.1666, lon: 77.8033 }; // Sai Kulwant Hall
 const ON_SITE_RADIUS_M = 5000; // beyond this, treat the visitor as "not at Parthi"
 
+// Access gate — the app is unusable at all beyond this radius, not just
+// defaulted to a fallback position. Center is the Prasanthi Nilayam pin
+// from the Google Maps place link provided for this check.
+const ASHRAM_CENTER = { lat: 14.1662805, lon: 77.8078665 };
+const GEOFENCE_RADIUS_M = 3000;
+
 let currentLang = localStorage.getItem("pranams_lang") || "en";
 
 const I18N = {
@@ -454,7 +460,7 @@ function setupLangSwitcher() {
   });
 }
 
-async function init() {
+async function startApp() {
   setupLangSwitcher();
   applyStaticI18n();
   await reloadPois();
@@ -481,4 +487,51 @@ async function init() {
   }
 }
 
-init();
+// Hard access gate, separate from the "near you" fallback above — this
+// runs first and the rest of the app (including that fallback) never
+// starts unless it passes. The overlay covers #app entirely, so nothing
+// underneath is visible or reachable while it's up.
+function checkGeofenceAndInit() {
+  const overlay = document.getElementById("geofence-overlay");
+  const textEl = document.getElementById("geofence-text");
+  const retryBtn = document.getElementById("geofence-retry");
+
+  overlay.style.display = "flex";
+  textEl.textContent = "Checking your location…";
+  retryBtn.style.display = "none";
+
+  function block(message) {
+    textEl.textContent = message;
+    retryBtn.style.display = "";
+  }
+
+  if (!navigator.geolocation) {
+    block("We couldn't determine your location. This app only works within Prasanthi Nilayam Ashram.");
+    return;
+  }
+
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      const distFromAshram = haversineM(
+        ASHRAM_CENTER.lat,
+        ASHRAM_CENTER.lon,
+        pos.coords.latitude,
+        pos.coords.longitude
+      );
+      if (distFromAshram <= GEOFENCE_RADIUS_M) {
+        overlay.style.display = "none";
+        startApp();
+      } else {
+        block("Your location is not in Prasanthi Nilayam Ashram. You will not be able to access this app.");
+      }
+    },
+    () => {
+      block("We couldn't determine your location. Please enable location access and try again.");
+    },
+    { timeout: 8000, enableHighAccuracy: true }
+  );
+}
+
+document.getElementById("geofence-retry").addEventListener("click", checkGeofenceAndInit);
+
+checkGeofenceAndInit();

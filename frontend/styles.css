@@ -108,6 +108,13 @@ html, body { margin: 0; height: 100%; background: #ffffff; color: var(--ink); fo
 .pill.info { background: var(--blue-soft); color: var(--blue); }
 .pill.closed { background: var(--pink-soft); color: var(--pink); }
 
+.geofence-overlay {
+  position: absolute; inset: 0; z-index: 3000; background: var(--paper-raised);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 18px; padding: 32px; text-align: center;
+}
+.geofence-text { font: 400 16px/1.5 var(--font-body); color: var(--ink); margin: 0; max-width: 320px; }
+
 .sheet-backdrop {
   position: absolute; inset: 0; background: rgba(0,0,0,0.25);
   display: none; align-items: flex-end; justify-content: center; z-index: 2000;
