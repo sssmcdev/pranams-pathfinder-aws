@@ -397,7 +397,14 @@ document.getElementById("sheet-backdrop").addEventListener("click", (e) => {
 let searchDebounceTimer = null;
 document.getElementById("search-input").addEventListener("input", (e) => {
   searchQuery = e.target.value.trim().toLowerCase();
-  renderList();
+  // Clearing the search box (e.g. backspacing it out) is the expected way
+  // back to the home view — without this, a category tapped before/during
+  // the search would keep the grid hidden with no search text left to
+  // explain why, since the grid-tap deselect gesture isn't reachable once
+  // the tile itself is hidden (see updatePanelVisibility).
+  if (!searchQuery) activeCategory = null;
+  renderAll(); // not just renderList() — clearing activeCategory here needs the
+  // grid tiles re-rendered too, so the previously-active tile's highlight clears
 });
 
 function openDirectionsView(target) {
