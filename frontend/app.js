@@ -487,11 +487,64 @@ async function startApp() {
   }
 }
 
+// /preview is a second entry point, off the home URL, for testing away
+// from the ashram: sign in with the admin credentials (same session flag
+// sqladmin's own login uses) instead of proving location.
+const PREVIEW_MODE = location.pathname.replace(/\/+$/, "") === "/preview";
+
+async function checkPreviewAuthAndInit() {
+  const overlay = document.getElementById("geofence-overlay");
+  const textEl = document.getElementById("geofence-text");
+  const loginForm = document.getElementById("preview-login-form");
+
+  overlay.style.display = "flex";
+  loginForm.style.display = "none";
+  textEl.style.display = "";
+  textEl.textContent = "Checking session…";
+
+  const res = await fetch(`${API}/preview/session`);
+  const { authenticated } = await res.json();
+  if (authenticated) {
+    overlay.style.display = "none";
+    startApp();
+  } else {
+    textEl.style.display = "none";
+    loginForm.style.display = "flex";
+  }
+}
+
+document.getElementById("preview-login-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const username = document.getElementById("preview-username").value;
+  const password = document.getElementById("preview-password").value;
+  const errorEl = document.getElementById("preview-login-error");
+  errorEl.style.display = "none";
+
+  const res = await fetch(`${API}/preview/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username, password }),
+  });
+
+  if (res.ok) {
+    document.getElementById("geofence-overlay").style.display = "none";
+    startApp();
+  } else {
+    errorEl.textContent = "Invalid credentials.";
+    errorEl.style.display = "";
+  }
+});
+
 // Hard access gate, separate from the "near you" fallback above — this
 // runs first and the rest of the app (including that fallback) never
 // starts unless it passes. The overlay covers #app entirely, so nothing
 // underneath is visible or reachable while it's up.
 function checkGeofenceAndInit() {
+  if (PREVIEW_MODE) {
+    checkPreviewAuthAndInit();
+    return;
+  }
+
   const overlay = document.getElementById("geofence-overlay");
   const textEl = document.getElementById("geofence-text");
   const retryBtn = document.getElementById("geofence-retry");

@@ -114,6 +114,8 @@ html, body { margin: 0; height: 100%; background: #ffffff; color: var(--ink); fo
   gap: 18px; padding: 32px; text-align: center;
 }
 .geofence-text { font: 400 16px/1.5 var(--font-body); color: var(--ink); margin: 0; max-width: 320px; }
+.preview-login { display: flex; flex-direction: column; gap: 12px; width: 100%; max-width: 280px; }
+.preview-login-error { color: var(--pink); }
 
 .sheet-backdrop {
   position: absolute; inset: 0; background: rgba(0,0,0,0.25);

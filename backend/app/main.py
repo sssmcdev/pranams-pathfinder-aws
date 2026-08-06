@@ -9,7 +9,7 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from app.admin import AdminAuth, MediaAssetAdmin, POIAdmin, SESSION_SECRET, SubPlaceAdmin
 from app.db import engine
-from app.routers import admin_tools, pois
+from app.routers import admin_tools, pois, preview
 from app.seed import init_db_and_seed
 
 ADMIN_TEMPLATES_DIR = os.path.join(os.path.dirname(__file__), "admin_templates")
@@ -46,6 +46,7 @@ app.add_middleware(SessionMiddleware, secret_key=SESSION_SECRET)
 
 app.include_router(pois.router)
 app.include_router(admin_tools.router)
+app.include_router(preview.router)
 
 admin = Admin(
     app,
@@ -70,6 +71,14 @@ async def admin_redirect():
 @app.get("/health")
 async def health():
     return {"status": "ok"}
+
+
+# Same SPA shell as "/" — app.js checks the path client-side and, for
+# this one, shows an admin-credential login (via preview.router above)
+# instead of the geolocation gate. Testing-only access, off the home URL.
+@app.get("/preview", include_in_schema=False)
+async def preview_shell():
+    return Response(content=(FRONTEND_DIR / "index.html").read_bytes(), media_type="text/html; charset=utf-8")
 
 
 # Registered last on purpose — "/{path:path}" would otherwise swallow every

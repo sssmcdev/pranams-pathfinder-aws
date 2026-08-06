@@ -12,6 +12,14 @@
   <div class="geofence-overlay" id="geofence-overlay">
     <p class="geofence-text" id="geofence-text">Checking your location…</p>
     <button class="cta" id="geofence-retry" style="display:none; width:auto; padding:12px 28px;">Retry</button>
+
+    <form class="preview-login" id="preview-login-form" style="display:none">
+      <p class="geofence-text">Admin sign-in — testing only, bypasses the location check.</p>
+      <div class="search"><input type="text" id="preview-username" placeholder="Username" autocomplete="username" /></div>
+      <div class="search"><input type="password" id="preview-password" placeholder="Password" autocomplete="current-password" /></div>
+      <p class="geofence-text preview-login-error" id="preview-login-error" style="display:none"></p>
+      <button type="submit" class="cta" style="width:auto; padding:12px 28px;">Sign in</button>
+    </form>
   </div>
 
   <div class="brand">
