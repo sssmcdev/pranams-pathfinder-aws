@@ -254,20 +254,6 @@ function filteredPois() {
     .sort((a, b) => a.distance_m - b.distance_m);
 }
 
-// The passive "Near you" view (no active search/category) only surfaces the
-// essentials, capped short — anything more specific is a deliberate search
-// or category tap, which should show everything that matches, uncapped.
-const NEAR_YOU_DEFAULT_CATEGORIES = ["water_restrooms", "canteens_shopping"];
-const NEAR_YOU_DEFAULT_LIMIT = 3;
-
-function visiblePois() {
-  const pois = filteredPois();
-  if (!activeCategory && !searchQuery) {
-    return pois.filter((p) => NEAR_YOU_DEFAULT_CATEGORIES.includes(p.category)).slice(0, NEAR_YOU_DEFAULT_LIMIT);
-  }
-  return pois;
-}
-
 function statusPill(poi) {
   if (!poi.is_open) return { text: t("closed"), cls: "closed" };
   if (poi.opening_hours) return { text: poi.opening_hours, cls: "open" };
@@ -275,10 +261,42 @@ function statusPill(poi) {
   return { text: t("open"), cls: "open" };
 }
 
+// Search or a category tap is a deliberate, focused action — the category
+// grid only makes sense in the idle "browsing" state, so it collapses out
+// of the way the moment either is active, giving the results the full
+// remaining height instead of competing with it for space.
+//
+// Once the grid is hidden, tapping the active tile again (the grid's own
+// deselect gesture) is no longer reachable — so while a category filter
+// is active with no search text, the title doubles as a clearable chip.
+function updatePanelVisibility() {
+  const idle = !activeCategory && !searchQuery;
+  document.getElementById("cat-grid").style.display = idle ? "" : "none";
+
+  const title = document.getElementById("near-you-title");
+  title.classList.remove("clearable");
+  title.onclick = null;
+  if (idle) {
+    title.style.display = "";
+    title.textContent = t("near_you");
+  } else if (activeCategory && !searchQuery) {
+    title.style.display = "";
+    title.textContent = `${catLabelByKey(activeCategory)} ✕`;
+    title.classList.add("clearable");
+    title.onclick = () => {
+      activeCategory = null;
+      renderAll();
+    };
+  } else {
+    title.style.display = "none";
+  }
+}
+
 function renderList() {
+  updatePanelVisibility();
   const list = document.getElementById("poi-list");
   list.innerHTML = "";
-  for (const poi of visiblePois()) {
+  for (const poi of filteredPois()) {
     const color = CAT_COLOR[poi.category];
     const row = document.createElement("button");
     row.className = "poi-row";
