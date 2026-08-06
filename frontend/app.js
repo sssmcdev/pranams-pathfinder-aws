@@ -137,6 +137,16 @@ let routeLine;
 let userMarker;
 let destMarker;
 
+// /preview is testing/admin traffic, not real visitors — never log it.
+function logEvent(payload) {
+  if (PREVIEW_MODE) return;
+  fetch(`${API}/analytics/event`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  }).catch(() => {}); // fire-and-forget — a failed log must never affect the UI
+}
+
 function haversineM(lat1, lon1, lat2, lon2) {
   const R = 6371000;
   const toRad = (d) => (d * Math.PI) / 180;
@@ -187,6 +197,7 @@ function renderCatGrid() {
       // straight to the nearest match — no intermediate list either.
       // Categories with real choices but no facility-type split still show the list.
       if (activating) {
+        logEvent({ event_type: "category", category: cat.key });
         const matches = allPois.filter((p) => p.category === cat.key);
         const types = [...new Set(matches.map((p) => p.facility_type).filter(Boolean))];
         if (types.length >= 2) {
@@ -320,6 +331,7 @@ function renderAll() {
 }
 
 function openSheet(poi) {
+  logEvent({ event_type: "poi_view", poi_id: poi.id, category: poi.category });
   const distance_m = haversineM(userPos.lat, userPos.lon, poi.lat, poi.lon);
   const genderTag = poi.gender && poi.gender !== "unisex" ? ` · ${poi.gender}` : "";
   document.getElementById("sheet-badge").textContent = catLabelByKey(poi.category) + genderTag;
@@ -376,6 +388,7 @@ function openSheet(poi) {
     directionsBtn.style.display = "";
     picker.style.display = "none";
     directionsBtn.onclick = () => {
+      logEvent({ event_type: "directions", poi_id: poi.id, category: poi.category });
       closeSheet();
       openDirectionsView({ name: poi.name, category: poi.category, lat: poi.lat, lon: poi.lon });
     };
@@ -405,6 +418,15 @@ document.getElementById("search-input").addEventListener("input", (e) => {
   if (!searchQuery) activeCategory = null;
   renderAll(); // not just renderList() — clearing activeCategory here needs the
   // grid tiles re-rendered too, so the previously-active tile's highlight clears
+
+  // Log the settled query, not every keystroke — debounced so "wat", "wate",
+  // "water" doesn't become three log entries.
+  clearTimeout(searchDebounceTimer);
+  if (searchQuery) {
+    searchDebounceTimer = setTimeout(() => {
+      logEvent({ event_type: "search", search_query: searchQuery });
+    }, 800);
+  }
 });
 
 function openDirectionsView(target) {
@@ -485,7 +507,8 @@ function setupLangSwitcher() {
   });
 }
 
-async function startApp() {
+async function startApp(openCoords) {
+  logEvent({ event_type: "open", lat: openCoords?.lat, lon: openCoords?.lon });
   setupLangSwitcher();
   applyStaticI18n();
   await reloadPois();
@@ -598,7 +621,7 @@ function checkGeofenceAndInit() {
       );
       if (distFromAshram <= GEOFENCE_RADIUS_M) {
         overlay.style.display = "none";
-        startApp();
+        startApp({ lat: pos.coords.latitude, lon: pos.coords.longitude });
       } else {
         block("Your location is not in Prasanthi Nilayam Ashram. You will not be able to access this app.");
       }

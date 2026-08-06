@@ -82,3 +82,26 @@ class MediaAsset(Base):
 
     def __str__(self) -> str:
         return self.original_filename
+
+
+class AnalyticsEvent(Base):
+    """One user action, logged for the /analytics dashboard.
+
+    lat/lon piggyback on the geolocation already captured for the
+    geofence check on app open — no separate permission prompt, and it's
+    what makes "where on the grounds is the app being used" possible.
+    """
+
+    __tablename__ = "analytics_events"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    event_type: Mapped[str] = mapped_column(String, nullable=False, index=True)  # open / poi_view / directions / category / search
+    poi_id: Mapped[str | None] = mapped_column(String, nullable=True, index=True)
+    category: Mapped[str | None] = mapped_column(String, nullable=True, index=True)
+    search_query: Mapped[str | None] = mapped_column(String, nullable=True)
+    lat: Mapped[float | None] = mapped_column(Float, nullable=True)
+    lon: Mapped[float | None] = mapped_column(Float, nullable=True)
+    created_at: Mapped[str] = mapped_column(String, nullable=False, index=True)
+
+    def __str__(self) -> str:
+        return f"{self.event_type} @ {self.created_at}"
