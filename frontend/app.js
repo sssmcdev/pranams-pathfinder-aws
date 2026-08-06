@@ -36,6 +36,7 @@ const ICONS = {
   library: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5c3-1 6-1 8 1v13c-2-2-5-2-8-1V5z"/><path d="M20 5c-3-1-6-1-8 1v13c2-2 5-2 8-1V5z"/></svg>',
   offices: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="8" width="18" height="12" rx="2"/><path d="M8 8V6a2 2 0 012-2h4a2 2 0 012 2v2"/><path d="M3 13h18"/></svg>',
   gates: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20V6a2 2 0 012-2h12a2 2 0 012 2v14"/><path d="M4 20h16"/><path d="M9 20V11"/><path d="M15 20V11"/></svg>',
+  wheelchair_buggy: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="18" r="3.5"/><path d="M9 18V5h4"/><path d="M9 11h5l3.5 7"/></svg>',
 };
 
 const CATS = [
@@ -87,6 +88,11 @@ const CATS = [
     color: "blue",
     labels: { en: "Entry/Exit Gates", te: "ప్రవేశ/నిష్క్రమణ గేట్లు", hi: "प्रवेश/निकास द्वार" },
   },
+  {
+    key: "wheelchair_buggy",
+    color: "blue",
+    labels: { en: "Wheelchair & Buggy Points", te: "వీల్‌చైర్ & బగ్గీ పాయింట్లు", hi: "व्हीलचेयर एवं बग्गी पॉइंट" },
+  },
 ];
 const CAT_COLOR = Object.fromEntries(CATS.map((c) => [c.key, c.color]));
 
@@ -122,6 +128,8 @@ const FACILITY_TYPE_LABELS = {
   police_station: { en: "Police Station", te: "పోలీస్ స్టేషన్", hi: "पुलिस स्टेशन" },
   security_office: { en: "Security Office", te: "భద్రతా కార్యాలయం", hi: "सुरक्षा कार्यालय" },
   gate: { en: "Gate", te: "గేటు", hi: "गेट" },
+  wheelchair: { en: "Wheelchair Point", te: "వీల్‌చైర్ పాయింట్", hi: "व्हीलचेयर पॉइंट" },
+  buggy: { en: "Buggy Point", te: "బగ్గీ పాయింట్", hi: "बग्गी पॉइंट" },
 };
 function facilityTypeLabel(key) {
   const entry = FACILITY_TYPE_LABELS[key];

@@ -12,6 +12,7 @@ class Category(str, Enum):
     library = "library"
     offices = "offices"
     gates = "gates"
+    wheelchair_buggy = "wheelchair_buggy"
 
 
 CATEGORY_LABELS: dict[str, str] = {
@@ -23,6 +24,7 @@ CATEGORY_LABELS: dict[str, str] = {
     "library": "Library & Book Stalls",
     "offices": "Offices - PRO, Central Trust, Sadhana Trust, Police Station, Security Office",
     "gates": "Entry/Exit Gates",
+    "wheelchair_buggy": "Wheelchair & Buggy Points",
 }
 
 # Facility Type — a finer label *within* a category, only meaningful for
@@ -39,6 +41,7 @@ CATEGORY_FACILITY_TYPES: dict[str, list[str]] = {
     "library": ["library", "books_photos"],
     "offices": ["pro", "central_trust", "sadhana_trust", "police_station", "security_office"],
     "gates": ["gate"],
+    "wheelchair_buggy": ["wheelchair", "buggy"],
 }
 
 FACILITY_TYPE_LABELS: dict[str, str] = {
@@ -62,6 +65,8 @@ FACILITY_TYPE_LABELS: dict[str, str] = {
     "police_station": "Police Station",
     "security_office": "Security Office",
     "gate": "Gate",
+    "wheelchair": "Wheelchair Point",
+    "buggy": "Buggy Point",
 }
 
 
