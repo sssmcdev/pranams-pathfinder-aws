@@ -84,6 +84,7 @@ class SubPlace(BaseModel):
     lat: float
     lon: float
     gender: Gender | None = None
+    photo_url: str | None = None
 
 
 class POI(BaseModel):

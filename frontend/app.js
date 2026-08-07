@@ -387,8 +387,18 @@ function openSheet(poi) {
       row.addEventListener("click", () => {
         // Every place opens as a modal before offering directions — a
         // sub-place is no exception, so reuse the same sheet, just with
-        // its own name/coordinates layered over the parent's other details.
-        openSheet({ ...poi, name: `${poi.name} — ${sub.name}`, lat: sub.lat, lon: sub.lon, gender: sub.gender, sub_places: [] });
+        // its own name/coordinates/photo layered over the parent's other
+        // details. photo_url falls back to the parent's own photo when
+        // this specific entrance doesn't have one set.
+        openSheet({
+          ...poi,
+          name: `${poi.name} — ${sub.name}`,
+          lat: sub.lat,
+          lon: sub.lon,
+          gender: sub.gender,
+          photo_url: sub.photo_url || poi.photo_url,
+          sub_places: [],
+        });
       });
       entranceList.appendChild(row);
     }

@@ -63,6 +63,7 @@ class SubPlace(Base):
     maps_url: Mapped[str | None] = mapped_column(String, nullable=True)
     gender: Mapped[str | None] = mapped_column(String, nullable=True)  # ladies / gents / unisex
     sort_order: Mapped[int] = mapped_column(Integer, default=0)
+    photo_url: Mapped[str | None] = mapped_column(String, nullable=True)
 
     poi: Mapped["POIRecord"] = relationship(back_populates="sub_places")
 
