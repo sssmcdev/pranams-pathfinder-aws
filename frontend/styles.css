@@ -101,7 +101,12 @@ html, body { margin: 0; height: 100%; background: #ffffff; color: var(--ink); fo
   color: var(--ink-soft); padding: 12px 18px 0;
 }
 .sec-title.clearable { cursor: pointer; color: var(--blue); }
-.sec-title .clear-x { font-size: 13px; letter-spacing: 0; }
+.sec-title .clear-x {
+  font: 700 10.5px/1 var(--font-body); letter-spacing: 0.04em;
+  background: var(--pink); color: #fff; border: none; border-radius: 999px;
+  padding: 6px 11px; cursor: pointer; flex: none;
+}
+.sec-title .clear-x:hover { background: #9c4c67; }
 .poi-list {
   flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 7px; padding: 8px 18px 18px;
   overflow-y: auto; -webkit-overflow-scrolling: touch;
