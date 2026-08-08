@@ -19,7 +19,7 @@ const I18N = {
   close: { en: "Close", te: "మూసివేయి", hi: "बंद करना" },
   open: { en: "Open", te: "ప్రస్తుతం తెరిచి ఉంది", hi: "फिलहाल खुला है" },
   closed: { en: "Closed", te: "మూసివేయబడింది", hi: "बंद किया हुआ" },
-  choose_entrance: { en: "Choose an entrance", te: "ప్రవేశాన్ని ఎంచుకోండి", hi: "एक प्रवेश द्वार चुनें" },
+  choose_entrance: { en: "Choose a facility", te: "సదుపాయాన్ని ఎంచుకోండి", hi: "एक सुविधा चुनें" },
   open_in_maps: { en: "Open in Google Maps", te: "Google Mapsలో తెరవండి", hi: "Google मानचित्र में खोलें" },
   choose_type: { en: "What are you looking for?", te: "మీరు ఏమి వెతుకుతున్నారు?", hi: "आप क्या ढूँढ रहे हैं?" },
   give_feedback: { en: "Give feedback", te: "అభిప్రాయం తెలియజేయండి", hi: "प्रतिक्रिया दें" },
