@@ -539,6 +539,7 @@ function closeSheet() {
 }
 
 document.getElementById("sheet-close").addEventListener("click", closeSheet);
+document.getElementById("sheet-close-x").addEventListener("click", closeSheet);
 document.getElementById("sheet-backdrop").addEventListener("click", (e) => {
   if (e.target.id === "sheet-backdrop") closeSheet();
 });
