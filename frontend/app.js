@@ -113,7 +113,11 @@ const CATS = [
   {
     key: "wheelchair_buggy",
     color: "blue",
-    labels: { en: "Wheelchair & Buggy Points", te: "వీల్‌చైర్ & బగ్గీ పాయింట్లు", hi: "व्हीलचेयर एवं बग्गी पॉइंट" },
+    labels: {
+      en: "Wheelchair, Buggy & Cloak Room Points",
+      te: "వీల్‌చైర్, బగ్గీ & క్లోక్ రూమ్ పాయింట్లు",
+      hi: "व्हीलचेयर, बग्गी एवं क्लोक रूम पॉइंट",
+    },
   },
 ];
 const CAT_COLOR = Object.fromEntries(CATS.map((c) => [c.key, c.color]));
@@ -152,6 +156,7 @@ const FACILITY_TYPE_LABELS = {
   gate: { en: "Gate", te: "గేటు", hi: "गेट" },
   wheelchair: { en: "Wheelchair Point", te: "వీల్‌చైర్ పాయింట్", hi: "व्हीलचेयर पॉइंट" },
   buggy: { en: "Buggy Point", te: "బగ్గీ పాయింట్", hi: "बग्गी पॉइंट" },
+  cloak_room: { en: "Cloak Room", te: "క్లోక్ రూమ్", hi: "क्लोक रूम" },
 };
 function facilityTypeLabel(key) {
   const entry = FACILITY_TYPE_LABELS[key];

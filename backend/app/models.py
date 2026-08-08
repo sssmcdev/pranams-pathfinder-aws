@@ -24,7 +24,7 @@ CATEGORY_LABELS: dict[str, str] = {
     "library": "Library & Book Stalls",
     "offices": "Offices - PRO, Central Trust, Sadhana Trust, Police Station, Security Office",
     "gates": "Entry/Exit Gates",
-    "wheelchair_buggy": "Wheelchair & Buggy Points",
+    "wheelchair_buggy": "Wheelchair, Buggy & Cloak Room Points",
 }
 
 # Facility Type — a finer label *within* a category, only meaningful for
@@ -41,7 +41,7 @@ CATEGORY_FACILITY_TYPES: dict[str, list[str]] = {
     "library": ["library", "books_photos"],
     "offices": ["pro", "central_trust", "sadhana_trust", "police_station", "security_office"],
     "gates": ["gate"],
-    "wheelchair_buggy": ["wheelchair", "buggy"],
+    "wheelchair_buggy": ["wheelchair", "buggy", "cloak_room"],
 }
 
 FACILITY_TYPE_LABELS: dict[str, str] = {
@@ -67,6 +67,7 @@ FACILITY_TYPE_LABELS: dict[str, str] = {
     "gate": "Gate",
     "wheelchair": "Wheelchair Point",
     "buggy": "Buggy Point",
+    "cloak_room": "Cloak Room",
 }
 
 
