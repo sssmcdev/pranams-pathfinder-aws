@@ -424,42 +424,18 @@ function renderList() {
   list.innerHTML = "";
   for (const poi of filteredPois()) {
     const color = CAT_COLOR[poi.category];
-    // A <div> with role="button", not a real <button> — the info toggle
-    // below needs its own nested button, and buttons can't nest.
-    const row = document.createElement("div");
+    const row = document.createElement("button");
     row.className = "poi-row";
-    row.setAttribute("role", "button");
-    row.setAttribute("tabindex", "0");
     const { text: pillText, cls: pillClass } = statusPill(poi);
     row.innerHTML = `
-      <div class="poi-row-top">
-        <span class="ic" style="background:var(--${color}-soft); color:var(--${color})">${ICONS[poi.category]}</span>
-        <span class="meta">
-          <span class="name">${poi.name}</span><br>
-          <span class="dist">${Math.round(poi.distance_m)} m &middot; ${walkMinutes(poi.distance_m)} min</span>
-        </span>
-        ${poi.description ? `<button type="button" class="info-btn" aria-label="Description">i</button>` : ""}
-        <span class="pill ${pillClass}">${pillText}</span>
-      </div>
-      ${poi.description ? `<p class="poi-row-desc">${poi.description}</p>` : ""}
+      <span class="ic" style="background:var(--${color}-soft); color:var(--${color})">${ICONS[poi.category]}</span>
+      <span class="meta">
+        <span class="name">${poi.name}</span><br>
+        <span class="dist">${Math.round(poi.distance_m)} m &middot; ${walkMinutes(poi.distance_m)} min</span>
+      </span>
+      <span class="pill ${pillClass}">${pillText}</span>
     `;
     row.addEventListener("click", () => openSheet(poi));
-    row.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        openSheet(poi);
-      }
-    });
-    const infoBtn = row.querySelector(".info-btn");
-    if (infoBtn) {
-      infoBtn.addEventListener("click", (e) => {
-        e.stopPropagation(); // don't also open the full sheet
-        const desc = row.querySelector(".poi-row-desc");
-        const opening = !desc.classList.contains("open");
-        desc.classList.toggle("open", opening);
-        infoBtn.classList.toggle("active", opening);
-      });
-    }
     list.appendChild(row);
   }
 }
@@ -490,8 +466,18 @@ function openSheet(poi) {
   statusEl.textContent = pillText;
   statusEl.className = "status-pill" + (pillClass === "closed" ? " closed" : "");
 
-  document.getElementById("sheet-desc").textContent = poi.description || "";
-  document.getElementById("sheet-desc").style.display = poi.description ? "" : "none";
+  const descEl = document.getElementById("sheet-desc");
+  descEl.textContent = poi.description || "";
+  descEl.style.display = "none"; // hidden by default — revealed via the info icon below
+
+  const infoBtn = document.getElementById("sheet-info-btn");
+  infoBtn.classList.remove("active");
+  infoBtn.style.display = poi.description ? "" : "none";
+  infoBtn.onclick = () => {
+    const opening = descEl.style.display === "none";
+    descEl.style.display = opening ? "" : "none";
+    infoBtn.classList.toggle("active", opening);
+  };
 
   document.getElementById("sheet-backdrop").classList.add("open");
 

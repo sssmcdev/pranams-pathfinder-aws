@@ -107,11 +107,14 @@
     <div class="drag-handle"></div>
     <div class="sheet-head">
       <span class="badge" id="sheet-badge"></span>
-      <h2 id="sheet-name"></h2>
+      <div class="sheet-name-row">
+        <h2 id="sheet-name"></h2>
+        <button type="button" class="info-btn" id="sheet-info-btn" aria-label="Description" style="display:none">i</button>
+      </div>
       <span class="dt" id="sheet-dist"></span>
     </div>
     <span class="status-pill" id="sheet-status"></span>
-    <p class="sheet-desc" id="sheet-desc"></p>
+    <p class="sheet-desc" id="sheet-desc" style="display:none"></p>
 
     <div class="entrance-picker" id="entrance-picker" style="display:none">
       <span class="entrance-title" id="entrance-title">Choose an entrance</span>
