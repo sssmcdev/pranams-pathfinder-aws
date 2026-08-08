@@ -104,6 +104,27 @@ html, body { margin: 0; height: 100%; background: #ffffff; color: var(--ink); fo
 .poi-row .meta { flex: 1; min-width: 0; }
 .poi-row .meta .name { font: 600 12px/1.3 var(--font-body); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .poi-row .meta .dist { font: 500 10.5px/1.3 var(--font-mono); color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.app-footer { flex: none; padding: 8px 18px 14px; text-align: center; border-top: 1px solid var(--line); }
+.footer-link { background: none; border: none; color: var(--ink-soft); font: 600 11.5px/1 var(--font-body); cursor: pointer; padding: 6px; }
+.footer-link:hover { color: var(--blue); text-decoration: underline; }
+
+.feedback-rating { display: flex; flex-direction: column; gap: 6px; }
+.feedback-label { font: 600 12.5px/1.3 var(--font-body); color: var(--ink); }
+.star-row { display: flex; gap: 4px; }
+.star {
+  background: none; border: none; padding: 0; cursor: pointer;
+  font-size: 26px; line-height: 1; color: var(--line);
+}
+.star.filled { color: var(--pink); }
+.feedback-comment {
+  width: 100%; resize: vertical; padding: 11px 14px; border-radius: 14px;
+  background: var(--paper-raised); border: 1px solid var(--line);
+  color: var(--ink); font: 500 13px/1.4 var(--font-body);
+}
+.feedback-status { font: 600 12px/1.4 var(--font-body); margin: 0; }
+.feedback-status.error { color: var(--pink); }
+.feedback-status.success { color: var(--blue); }
+
 .pill {
   font: 700 9.5px/1 var(--font-body); padding: 5px 8px; border-radius: 999px;
   white-space: nowrap; flex: none; max-width: 38%; overflow: hidden; text-overflow: ellipsis;

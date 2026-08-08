@@ -22,6 +22,28 @@ const I18N = {
   choose_entrance: { en: "Choose an entrance", te: "ప్రవేశాన్ని ఎంచుకోండి", hi: "एक प्रवेश द्वार चुनें" },
   open_in_maps: { en: "Open in Google Maps", te: "Google Mapsలో తెరవండి", hi: "Google मानचित्र में खोलें" },
   choose_type: { en: "What are you looking for?", te: "మీరు ఏమి వెతుకుతున్నారు?", hi: "आप क्या ढूँढ रहे हैं?" },
+  give_feedback: { en: "Give feedback", te: "అభిప్రాయం తెలియజేయండి", hi: "प्रतिक्रिया दें" },
+  feedback_title: { en: "Feedback", te: "అభిప్రాయం", hi: "प्रतिक्रिया" },
+  feedback_navigation: { en: "Ease of finding places", te: "స్థలాలను కనుగొనడంలో సౌలభ్యం", hi: "स्थान खोजने में आसानी" },
+  feedback_info_accuracy: {
+    en: "Accuracy of information (hours, locations)",
+    te: "సమాచార ఖచ్చితత్వం (వేళలు, స్థానాలు)",
+    hi: "जानकारी की सटीकता (समय, स्थान)",
+  },
+  feedback_overall: { en: "Overall app experience", te: "మొత్తం యాప్ అనుభవం", hi: "समग्र ऐप अनुभव" },
+  feedback_comment_placeholder: {
+    en: "Anything else you'd like to tell us? (optional)",
+    te: "మీరు మాకు చెప్పాలనుకుంటున్న ఇంకేమైనా ఉందా? (ఐచ్ఛికం)",
+    hi: "क्या आप हमें और कुछ बताना चाहेंगे? (वैकल्पिक)",
+  },
+  send_feedback: { en: "Send feedback", te: "అభిప్రాయాన్ని పంపండి", hi: "प्रतिक्रिया भेजें" },
+  feedback_thanks: { en: "Thank you for your feedback!", te: "మీ అభిప్రాయానికి ధన్యవాదాలు!", hi: "आपकी प्रतिक्रिया के लिए धन्यवाद!" },
+  feedback_rate_all: {
+    en: "Please rate all three before sending.",
+    te: "పంపే ముందు దయచేసి మూడింటినీ రేట్ చేయండి.",
+    hi: "भेजने से पहले कृपया तीनों को रेट करें।",
+  },
+  feedback_error: { en: "Couldn't send feedback. Please try again.", te: "అభిప్రాయాన్ని పంపలేకపోయాము. దయచేసి మళ్లీ ప్రయత్నించండి.", hi: "प्रतिक्रिया नहीं भेजी जा सकी। कृपया पुनः प्रयास करें।" },
 };
 function t(key) {
   return (I18N[key] && I18N[key][currentLang]) || I18N[key].en;
@@ -257,6 +279,86 @@ function closeTypePicker() {
 document.getElementById("type-picker-close").addEventListener("click", closeTypePicker);
 document.getElementById("type-picker-backdrop").addEventListener("click", (e) => {
   if (e.target.id === "type-picker-backdrop") closeTypePicker();
+});
+
+const feedbackRatings = { navigation: 0, info_accuracy: 0, overall: 0 };
+
+function paintStarRow(row) {
+  const rating = Number(row.dataset.rating);
+  row.querySelectorAll(".star").forEach((star) => {
+    star.classList.toggle("filled", Number(star.dataset.value) <= rating);
+  });
+}
+
+document.querySelectorAll(".star-row").forEach((row) => {
+  row.querySelectorAll(".star").forEach((star) => {
+    star.addEventListener("click", () => {
+      const value = Number(star.dataset.value);
+      row.dataset.rating = value;
+      feedbackRatings[row.dataset.key] = value;
+      paintStarRow(row);
+    });
+  });
+});
+
+function resetFeedbackForm() {
+  Object.keys(feedbackRatings).forEach((key) => (feedbackRatings[key] = 0));
+  document.querySelectorAll(".star-row").forEach((row) => {
+    row.dataset.rating = 0;
+    paintStarRow(row);
+  });
+  document.getElementById("feedback-comment").value = "";
+  const statusEl = document.getElementById("feedback-status");
+  statusEl.style.display = "none";
+  statusEl.className = "feedback-status";
+}
+
+function openFeedback() {
+  resetFeedbackForm();
+  document.getElementById("feedback-backdrop").classList.add("open");
+}
+
+function closeFeedback() {
+  document.getElementById("feedback-backdrop").classList.remove("open");
+}
+
+document.getElementById("feedback-open").addEventListener("click", openFeedback);
+document.getElementById("feedback-close").addEventListener("click", closeFeedback);
+document.getElementById("feedback-backdrop").addEventListener("click", (e) => {
+  if (e.target.id === "feedback-backdrop") closeFeedback();
+});
+
+document.getElementById("feedback-submit").addEventListener("click", async () => {
+  const statusEl = document.getElementById("feedback-status");
+  const { navigation, info_accuracy, overall } = feedbackRatings;
+  if (!navigation || !info_accuracy || !overall) {
+    statusEl.textContent = t("feedback_rate_all");
+    statusEl.className = "feedback-status error";
+    statusEl.style.display = "";
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API}/feedback`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        rating_navigation: navigation,
+        rating_info_accuracy: info_accuracy,
+        rating_overall: overall,
+        comment: document.getElementById("feedback-comment").value,
+      }),
+    });
+    if (!res.ok) throw new Error("request failed");
+    statusEl.textContent = t("feedback_thanks");
+    statusEl.className = "feedback-status success";
+    statusEl.style.display = "";
+    setTimeout(closeFeedback, 1400);
+  } catch {
+    statusEl.textContent = t("feedback_error");
+    statusEl.className = "feedback-status error";
+    statusEl.style.display = "";
+  }
 });
 
 function matchesSearch(poi, q) {
@@ -502,6 +604,15 @@ function applyStaticI18n() {
   document.getElementById("sheet-directions").textContent = t("start_directions");
   document.getElementById("sheet-close").textContent = t("close");
   document.getElementById("type-picker-close").textContent = t("close");
+
+  document.getElementById("feedback-open").textContent = t("give_feedback");
+  document.getElementById("feedback-title").textContent = t("feedback_title");
+  document.getElementById("feedback-label-navigation").textContent = t("feedback_navigation");
+  document.getElementById("feedback-label-info_accuracy").textContent = t("feedback_info_accuracy");
+  document.getElementById("feedback-label-overall").textContent = t("feedback_overall");
+  document.getElementById("feedback-comment").placeholder = t("feedback_comment_placeholder");
+  document.getElementById("feedback-submit").textContent = t("send_feedback");
+  document.getElementById("feedback-close").textContent = t("close");
 }
 
 async function reloadPois() {

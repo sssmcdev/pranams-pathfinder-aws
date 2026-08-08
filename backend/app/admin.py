@@ -5,7 +5,7 @@ from sqladmin.authentication import AuthenticationBackend
 from starlette.requests import Request
 from wtforms import SelectField
 
-from app.db_models import MediaAsset, POIRecord, SubPlace
+from app.db_models import Feedback, MediaAsset, POIRecord, SubPlace
 from app.models import CATEGORY_FACILITY_TYPES, CATEGORY_LABELS, Category, FACILITY_TYPE_LABELS, Gender
 
 # The union of every category's facility types, keyed for a per-category
@@ -162,3 +162,26 @@ class SubPlaceAdmin(ModelView, model=SubPlace):
         "lon": {"placeholder": "Filled in automatically, or enter manually — the entrance's own point, not the building center"},
         "photo_url": {"placeholder": "Pick a photo from the gallery above, or paste a URL — falls back to the place's own photo if left blank"},
     }
+
+
+class FeedbackAdmin(ModelView, model=Feedback):
+    name = "Feedback"
+    name_plural = "Feedback"
+    icon = "fa-solid fa-comment-dots"
+    can_create = False  # only ever submitted by visitors, via the app's footer link
+    can_edit = False
+
+    column_list = [
+        Feedback.created_at,
+        Feedback.rating_navigation,
+        Feedback.rating_info_accuracy,
+        Feedback.rating_overall,
+        Feedback.comment,
+    ]
+    column_labels = {
+        Feedback.rating_navigation: "Ease of finding places",
+        Feedback.rating_info_accuracy: "Info accuracy",
+        Feedback.rating_overall: "Overall",
+    }
+    column_sortable_list = [Feedback.created_at, Feedback.rating_overall]
+    column_default_sort = [(Feedback.created_at, True)]

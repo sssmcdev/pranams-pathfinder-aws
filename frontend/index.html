@@ -51,6 +51,56 @@
   <span class="sec-title" id="near-you-title">Near you</span>
   <div class="poi-list" id="poi-list"></div>
 
+  <footer class="app-footer">
+    <button class="footer-link" id="feedback-open">Give feedback</button>
+  </footer>
+
+<div class="sheet-backdrop" id="feedback-backdrop">
+  <div class="sheet">
+    <div class="drag-handle"></div>
+    <div class="sheet-head">
+      <h2 id="feedback-title">Feedback</h2>
+    </div>
+
+    <div class="feedback-rating" data-key="navigation">
+      <span class="feedback-label" id="feedback-label-navigation">Ease of finding places</span>
+      <div class="star-row" data-rating="0" data-key="navigation">
+        <button type="button" class="star" data-value="1" aria-label="1 star">★</button>
+        <button type="button" class="star" data-value="2" aria-label="2 stars">★</button>
+        <button type="button" class="star" data-value="3" aria-label="3 stars">★</button>
+        <button type="button" class="star" data-value="4" aria-label="4 stars">★</button>
+        <button type="button" class="star" data-value="5" aria-label="5 stars">★</button>
+      </div>
+    </div>
+    <div class="feedback-rating" data-key="info_accuracy">
+      <span class="feedback-label" id="feedback-label-info_accuracy">Accuracy of information (hours, locations)</span>
+      <div class="star-row" data-rating="0" data-key="info_accuracy">
+        <button type="button" class="star" data-value="1" aria-label="1 star">★</button>
+        <button type="button" class="star" data-value="2" aria-label="2 stars">★</button>
+        <button type="button" class="star" data-value="3" aria-label="3 stars">★</button>
+        <button type="button" class="star" data-value="4" aria-label="4 stars">★</button>
+        <button type="button" class="star" data-value="5" aria-label="5 stars">★</button>
+      </div>
+    </div>
+    <div class="feedback-rating" data-key="overall">
+      <span class="feedback-label" id="feedback-label-overall">Overall app experience</span>
+      <div class="star-row" data-rating="0" data-key="overall">
+        <button type="button" class="star" data-value="1" aria-label="1 star">★</button>
+        <button type="button" class="star" data-value="2" aria-label="2 stars">★</button>
+        <button type="button" class="star" data-value="3" aria-label="3 stars">★</button>
+        <button type="button" class="star" data-value="4" aria-label="4 stars">★</button>
+        <button type="button" class="star" data-value="5" aria-label="5 stars">★</button>
+      </div>
+    </div>
+
+    <textarea class="feedback-comment" id="feedback-comment" rows="3" placeholder="Anything else you'd like to tell us? (optional)"></textarea>
+    <p class="feedback-status" id="feedback-status" style="display:none"></p>
+
+    <button class="cta" id="feedback-submit">Send feedback</button>
+    <button class="ghost-btn" id="feedback-close">Close</button>
+  </div>
+</div>
+
 <div class="sheet-backdrop" id="sheet-backdrop">
   <div class="sheet">
     <img class="sheet-photo" id="sheet-photo" style="display:none">

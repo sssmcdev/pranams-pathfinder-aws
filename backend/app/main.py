@@ -7,9 +7,9 @@ from fastapi.responses import RedirectResponse, Response
 from sqladmin import Admin
 from starlette.middleware.sessions import SessionMiddleware
 
-from app.admin import AdminAuth, MediaAssetAdmin, POIAdmin, SESSION_SECRET, SubPlaceAdmin
+from app.admin import AdminAuth, FeedbackAdmin, MediaAssetAdmin, POIAdmin, SESSION_SECRET, SubPlaceAdmin
 from app.db import engine
-from app.routers import admin_tools, analytics, pois, preview
+from app.routers import admin_tools, analytics, feedback, pois, preview
 from app.seed import init_db_and_seed
 
 ADMIN_TEMPLATES_DIR = os.path.join(os.path.dirname(__file__), "admin_templates")
@@ -48,6 +48,7 @@ app.include_router(pois.router)
 app.include_router(admin_tools.router)
 app.include_router(preview.router)
 app.include_router(analytics.router)
+app.include_router(feedback.router)
 
 admin = Admin(
     app,
@@ -58,6 +59,7 @@ admin = Admin(
 admin.add_view(POIAdmin)
 admin.add_view(SubPlaceAdmin)
 admin.add_view(MediaAssetAdmin)
+admin.add_view(FeedbackAdmin)
 
 
 # sqladmin's mount only matches paths with a trailing slash

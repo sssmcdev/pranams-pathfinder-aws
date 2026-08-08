@@ -85,6 +85,22 @@ class MediaAsset(Base):
         return self.original_filename
 
 
+class Feedback(Base):
+    """A visitor-submitted rating, from the footer feedback link."""
+
+    __tablename__ = "feedback"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    rating_navigation: Mapped[int] = mapped_column(Integer, nullable=False)  # Ease of finding places, 1-5
+    rating_info_accuracy: Mapped[int] = mapped_column(Integer, nullable=False)  # Accuracy of information, 1-5
+    rating_overall: Mapped[int] = mapped_column(Integer, nullable=False)  # Overall app experience, 1-5
+    comment: Mapped[str | None] = mapped_column(String, nullable=True)
+    created_at: Mapped[str] = mapped_column(String, nullable=False, index=True)
+
+    def __str__(self) -> str:
+        return f"{self.rating_overall}★ @ {self.created_at}"
+
+
 class AnalyticsEvent(Base):
     """One user action, logged for the /analytics dashboard.
 
