@@ -3,9 +3,10 @@ from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import RedirectResponse, Response
+from fastapi.responses import JSONResponse, RedirectResponse, Response
 from sqladmin import Admin
 from starlette.middleware.sessions import SessionMiddleware
+from starlette.requests import Request
 
 from app.admin import AdminAuth, FeedbackAdmin, MediaAssetAdmin, POIAdmin, SESSION_SECRET, SubPlaceAdmin
 from app.db import engine
@@ -43,6 +44,19 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.add_middleware(SessionMiddleware, secret_key=SESSION_SECRET)
+
+
+# A 404 from a browser navigation (Accept: text/html — real page loads,
+# not fetch() calls, which don't send that by default) gets the branded
+# error page instead of raw JSON. Every other status/exception keeps
+# FastAPI's normal {"detail": ...} response, matching its own default
+# handler exactly, so nothing else changes.
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    if exc.status_code == 404 and "text/html" in request.headers.get("accept", ""):
+        return Response(content=(FRONTEND_DIR / "404.html").read_bytes(), media_type="text/html; charset=utf-8", status_code=404)
+    return JSONResponse({"detail": exc.detail}, status_code=exc.status_code)
+
 
 app.include_router(pois.router)
 app.include_router(admin_tools.router)
