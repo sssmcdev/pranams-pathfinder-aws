@@ -372,12 +372,31 @@ function matchesSearch(poi, q) {
   return (poi.search_terms || "").toLowerCase().includes(q);
 }
 
+// Hardcoded pin order for specific POI ids, per category — these come
+// first (in this exact order), everything else keeps the normal
+// distance sort behind them.
+const PINNED_POI_ORDER = {
+  accommodation: ["accomganeshgate", "accommain"],
+};
+
 function filteredPois() {
+  const pinned = activeCategory && PINNED_POI_ORDER[activeCategory];
   return allPois
     .filter((p) => !activeCategory || p.category === activeCategory)
     .filter((p) => matchesSearch(p, searchQuery))
     .map((p) => ({ ...p, distance_m: haversineM(userPos.lat, userPos.lon, p.lat, p.lon) }))
-    .sort((a, b) => a.distance_m - b.distance_m);
+    .sort((a, b) => {
+      if (pinned) {
+        const ai = pinned.indexOf(a.id);
+        const bi = pinned.indexOf(b.id);
+        if (ai !== -1 || bi !== -1) {
+          if (ai === -1) return 1;
+          if (bi === -1) return -1;
+          return ai - bi;
+        }
+      }
+      return a.distance_m - b.distance_m;
+    });
 }
 
 function statusPill(poi) {
