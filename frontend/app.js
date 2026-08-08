@@ -424,18 +424,42 @@ function renderList() {
   list.innerHTML = "";
   for (const poi of filteredPois()) {
     const color = CAT_COLOR[poi.category];
-    const row = document.createElement("button");
+    // A <div> with role="button", not a real <button> — the info toggle
+    // below needs its own nested button, and buttons can't nest.
+    const row = document.createElement("div");
     row.className = "poi-row";
+    row.setAttribute("role", "button");
+    row.setAttribute("tabindex", "0");
     const { text: pillText, cls: pillClass } = statusPill(poi);
     row.innerHTML = `
-      <span class="ic" style="background:var(--${color}-soft); color:var(--${color})">${ICONS[poi.category]}</span>
-      <span class="meta">
-        <span class="name">${poi.name}</span><br>
-        <span class="dist">${Math.round(poi.distance_m)} m &middot; ${walkMinutes(poi.distance_m)} min</span>
-      </span>
-      <span class="pill ${pillClass}">${pillText}</span>
+      <div class="poi-row-top">
+        <span class="ic" style="background:var(--${color}-soft); color:var(--${color})">${ICONS[poi.category]}</span>
+        <span class="meta">
+          <span class="name">${poi.name}</span><br>
+          <span class="dist">${Math.round(poi.distance_m)} m &middot; ${walkMinutes(poi.distance_m)} min</span>
+        </span>
+        ${poi.description ? `<button type="button" class="info-btn" aria-label="Description">i</button>` : ""}
+        <span class="pill ${pillClass}">${pillText}</span>
+      </div>
+      ${poi.description ? `<p class="poi-row-desc">${poi.description}</p>` : ""}
     `;
     row.addEventListener("click", () => openSheet(poi));
+    row.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        openSheet(poi);
+      }
+    });
+    const infoBtn = row.querySelector(".info-btn");
+    if (infoBtn) {
+      infoBtn.addEventListener("click", (e) => {
+        e.stopPropagation(); // don't also open the full sheet
+        const desc = row.querySelector(".poi-row-desc");
+        const opening = !desc.classList.contains("open");
+        desc.classList.toggle("open", opening);
+        infoBtn.classList.toggle("active", opening);
+      });
+    }
     list.appendChild(row);
   }
 }
