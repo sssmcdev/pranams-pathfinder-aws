@@ -419,14 +419,18 @@ function updatePanelVisibility() {
   document.getElementById("cat-grid").style.display = idle ? "" : "none";
 
   const title = document.getElementById("near-you-title");
+  const label = document.getElementById("near-you-label");
+  const clearX = document.getElementById("near-you-clear-x");
   title.classList.remove("clearable");
   title.onclick = null;
   if (idle) {
     title.style.display = "";
-    title.textContent = t("near_you");
+    label.textContent = t("near_you");
+    clearX.style.display = "none";
   } else if (activeCategory && !searchQuery) {
     title.style.display = "";
-    title.textContent = `${catLabelByKey(activeCategory)} ✕`;
+    label.textContent = catLabelByKey(activeCategory);
+    clearX.style.display = "";
     title.classList.add("clearable");
     title.onclick = () => {
       activeCategory = null;
@@ -652,7 +656,7 @@ document.getElementById("directions-back").addEventListener("click", closeDirect
 
 function applyStaticI18n() {
   document.getElementById("search-input").placeholder = t("search_placeholder");
-  document.getElementById("near-you-title").textContent = t("near_you");
+  document.getElementById("near-you-label").textContent = t("near_you");
   document.getElementById("sheet-directions").textContent = t("start_directions");
   document.getElementById("sheet-close").textContent = t("close");
   document.getElementById("type-picker-close").textContent = t("close");
