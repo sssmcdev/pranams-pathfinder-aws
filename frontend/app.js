@@ -445,7 +445,13 @@ function renderAll() {
   renderList();
 }
 
-function openSheet(poi) {
+// Set only when opening a drilled-into facility (see the entrance-row
+// click handler below) — lets closeSheet() go back to the entrance
+// picker it came from instead of dismissing the whole modal.
+let sheetParent = null;
+
+function openSheet(poi, parent = null) {
+  sheetParent = parent;
   logEvent({ event_type: "poi_view", poi_id: poi.id, category: poi.category });
   const distance_m = haversineM(userPos.lat, userPos.lon, poi.lat, poi.lon);
   const genderTag = poi.gender && poi.gender !== "unisex" ? ` · ${poi.gender}` : "";
@@ -507,15 +513,18 @@ function openSheet(poi) {
         // its own name/coordinates/photo layered over the parent's other
         // details. photo_url falls back to the parent's own photo when
         // this specific entrance doesn't have one set.
-        openSheet({
-          ...poi,
-          name: `${poi.name} — ${sub.name}`,
-          lat: sub.lat,
-          lon: sub.lon,
-          gender: sub.gender,
-          photo_url: sub.photo_url || poi.photo_url,
-          sub_places: [],
-        });
+        openSheet(
+          {
+            ...poi,
+            name: `${poi.name} — ${sub.name}`,
+            lat: sub.lat,
+            lon: sub.lon,
+            gender: sub.gender,
+            photo_url: sub.photo_url || poi.photo_url,
+            sub_places: [],
+          },
+          poi
+        );
       });
       entranceList.appendChild(row);
     }
@@ -524,7 +533,11 @@ function openSheet(poi) {
     picker.style.display = "none";
     directionsBtn.onclick = () => {
       logEvent({ event_type: "directions", poi_id: poi.id, category: poi.category });
-      closeSheet();
+      // Force a full dismiss, not closeSheet()'s "back to entrance picker"
+      // behavior — starting directions means leaving the sheet entirely,
+      // even from a drilled-into facility.
+      sheetParent = null;
+      document.getElementById("sheet-backdrop").classList.remove("open");
       openDirectionsView({ name: poi.name, category: poi.category, lat: poi.lat, lon: poi.lon });
     };
   }
@@ -535,6 +548,10 @@ function getComputedColor(varName) {
 }
 
 function closeSheet() {
+  if (sheetParent) {
+    openSheet(sheetParent); // back to the entrance picker, not a full dismiss
+    return;
+  }
   document.getElementById("sheet-backdrop").classList.remove("open");
 }
 
