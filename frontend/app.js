@@ -585,6 +585,7 @@ document.getElementById("sheet-backdrop").addEventListener("click", (e) => {
 let searchDebounceTimer = null;
 document.getElementById("search-input").addEventListener("input", (e) => {
   searchQuery = e.target.value.trim().toLowerCase();
+  document.getElementById("search-clear").style.display = searchQuery ? "" : "none";
   // Clearing the search box (e.g. backspacing it out) is the expected way
   // back to the home view — without this, a category tapped before/during
   // the search would keep the grid hidden with no search text left to
@@ -602,6 +603,15 @@ document.getElementById("search-input").addEventListener("input", (e) => {
       logEvent({ event_type: "search", search_query: searchQuery });
     }, 800);
   }
+});
+
+document.getElementById("search-clear").addEventListener("click", () => {
+  const input = document.getElementById("search-input");
+  input.value = "";
+  searchQuery = "";
+  activeCategory = null; // same "clear = back to home" behavior as backspacing it out
+  document.getElementById("search-clear").style.display = "none";
+  renderAll();
 });
 
 function openDirectionsView(target) {
