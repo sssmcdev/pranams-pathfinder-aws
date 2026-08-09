@@ -13,7 +13,7 @@ const GEOFENCE_RADIUS_M = 3000;
 let currentLang = localStorage.getItem("pranams_lang") || "en";
 
 const I18N = {
-  search_placeholder: { en: "Search water, toilets, Mandir…", te: "నీరు, మరుగుదొడ్లు, మందిరాన్ని వెతకండి...", hi: "पानी, शौचालय, मंदिर खोजें..." },
+  search_placeholder: { en: "Search Mandir, Water, Canteen…", te: "నీరు, మరుగుదొడ్లు, మందిరాన్ని వెతకండి...", hi: "पानी, शौचालय, मंदिर खोजें..." },
   search_prefix: { en: "Search", te: "వెతకండి", hi: "खोजें" },
   filter_all: { en: "All", te: "అన్నీ", hi: "सभी" },
   near_you: { en: "Near you", te: "మీ దగ్గర", hi: "आप के पास" },
@@ -87,7 +87,7 @@ const CATS = [
     key: "accommodation",
     color: "yellow",
     primary: true,
-    labels: { en: "Stay", te: "వసతి & అతిథి గృహాలు", hi: "आवास एवं अतिथि गृह" },
+    labels: { en: "Stay & Accommodation", te: "వసతి & అతిథి గృహాలు", hi: "आवास एवं अतिथि गृह" },
   },
   {
     key: "water_restrooms",
