@@ -537,14 +537,12 @@ function renderList() {
     const color = CAT_COLOR[poi.category];
     const row = document.createElement("button");
     row.className = "poi-row";
-    const { text: pillText, cls: pillClass } = statusPill(poi);
     row.innerHTML = `
       <span class="ic" style="background:var(--${color}-soft); color:var(--${color})">${ICONS[poi.category]}</span>
       <span class="meta">
         <span class="name">${poi.name}</span><br>
         <span class="dist">${Math.round(poi.distance_m)} m &middot; ${walkMinutes(poi.distance_m)} min</span>
       </span>
-      <span class="pill ${pillClass}">${pillText}</span>
     `;
     row.addEventListener("click", () => openSheet(poi));
     list.appendChild(row);
