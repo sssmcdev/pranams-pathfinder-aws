@@ -239,27 +239,32 @@ function renderCatGrid() {
       <span>${catLabel(cat)}</span>
     `;
     btn.addEventListener("click", () => {
-      const activating = activeCategory !== cat.key;
-      activeCategory = activating ? cat.key : null;
-      activeFacilityType = null; // switching categories always starts unfiltered
-      renderAll();
+      if (activeCategory === cat.key) return; // grid is hidden whenever a category is active, so unreachable in practice
 
-      // A category with exactly one place total doesn't need the extra
-      // step of filtering the list and then tapping it — just open it
-      // directly. Everything else (including categories that split into
-      // multiple facility types) shows the list; the facility-type filter
-      // chips above it (see renderFacilityFilters) narrow it further,
-      // in place, rather than forcing a "which kind?" modal first — that
-      // modal used to silently jump straight to the nearest match of a
-      // type with no way to reach any other same-type place (e.g. two
-      // temples, tapping "Temple" only ever reached whichever was closer).
-      if (activating) {
-        logEvent({ event_type: "category", category: cat.key });
-        const matches = allPois.filter((p) => p.category === cat.key);
-        if (matches.length === 1) {
-          openSheet(matches[0]);
-        }
+      logEvent({ event_type: "category", category: cat.key });
+      const matches = allPois.filter((p) => p.category === cat.key);
+
+      if (matches.length === 1) {
+        // Only one place in this whole category (e.g. Mandir/SKH) — open
+        // it directly without ever entering a filtered list state. The
+        // underlying view stays exactly as it was (idle home), so closing
+        // the sheet needs no extra step — previously activeCategory got
+        // set first regardless, so closing revealed a pointless one-item
+        // "filtered list" instead of going straight back home.
+        openSheet(matches[0]);
+        return;
       }
+
+      // Everything else (including categories that split into multiple
+      // facility types) shows the list; the facility-type filter chips
+      // above it (see renderFacilityFilters) narrow it further, in place,
+      // rather than forcing a "which kind?" modal first — that modal used
+      // to silently jump straight to the nearest match of a type with no
+      // way to reach any other same-type place (e.g. two temples, tapping
+      // "Temple" only ever reached whichever was closer).
+      activeCategory = cat.key;
+      activeFacilityType = null;
+      renderAll();
     });
     grid.appendChild(btn);
   }
