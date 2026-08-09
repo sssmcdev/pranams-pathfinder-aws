@@ -31,12 +31,18 @@
       <h1>PRANAMS</h1>
       <span class="full-form">Prasanthi Nilayam Ashram Management System</span>
     </div>
-  </div>
+    <button type="button" class="menu-btn" id="menu-btn" aria-label="Menu">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+    </button>
 
-  <div class="lang-row">
-    <button class="lang-chip" data-lang="en">EN</button>
-    <button class="lang-chip" data-lang="te">తెలుగు</button>
-    <button class="lang-chip" data-lang="hi">हिन्दी</button>
+    <div class="menu-popover" id="menu-popover" style="display:none">
+      <div class="lang-row">
+        <button class="lang-chip" data-lang="en">EN</button>
+        <button class="lang-chip" data-lang="te">తెలుగు</button>
+        <button class="lang-chip" data-lang="hi">हिन्दी</button>
+      </div>
+      <button class="footer-link" id="feedback-open">Give feedback</button>
+    </div>
   </div>
 
   <div class="search-row">
@@ -50,16 +56,13 @@
   </div>
 
   <div class="cat-grid" id="cat-grid"></div>
+  <button type="button" class="more-cats-toggle" id="more-cats-toggle">More categories ▾</button>
 
   <div class="sec-title" id="near-you-title">
     <span id="near-you-label">Near you</span>
     <button type="button" class="clear-x" id="near-you-clear-x" style="display:none">Close ✕</button>
   </div>
   <div class="poi-list" id="poi-list"></div>
-
-  <footer class="app-footer">
-    <button class="footer-link" id="feedback-open">Give feedback</button>
-  </footer>
 
 <div class="sheet-backdrop" id="feedback-backdrop">
   <div class="sheet">

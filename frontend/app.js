@@ -44,6 +44,8 @@ const I18N = {
     hi: "भेजने से पहले कृपया तीनों को रेट करें।",
   },
   feedback_error: { en: "Couldn't send feedback. Please try again.", te: "అభిప్రాయాన్ని పంపలేకపోయాము. దయచేసి మళ్లీ ప్రయత్నించండి.", hi: "प्रतिक्रिया नहीं भेजी जा सकी। कृपया पुनः प्रयास करें।" },
+  more_categories: { en: "More categories ▾", te: "మరిన్ని వర్గాలు ▾", hi: "अधिक श्रेणियाँ ▾" },
+  fewer_categories: { en: "Fewer categories ▴", te: "తక్కువ వర్గాలు ▴", hi: "कम श्रेणियाँ ▴" },
 };
 function t(key) {
   return (I18N[key] && I18N[key][currentLang]) || I18N[key].en;
@@ -61,20 +63,19 @@ const ICONS = {
   wheelchair_buggy: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="18" r="3.5"/><path d="M9 18V5h4"/><path d="M9 11h5l3.5 7"/></svg>',
 };
 
+// primary: true -> one of the 6 tiles shown by default (2 rows of 3).
+// The rest only appear once "More categories" is expanded.
 const CATS = [
   {
     key: "mandir",
     color: "pink",
+    primary: true,
     labels: { en: "Mandir (Sai Kulwant Hall)", te: "మందిర్ (సాయి కుల్వంత్ హాల్)", hi: "मंदिर (साईं कुलवंत हॉल)" },
-  },
-  {
-    key: "accommodation",
-    color: "yellow",
-    labels: { en: "Accommodation & Guest Houses", te: "వసతి & అతిథి గృహాలు", hi: "आवास एवं अतिथि गृह" },
   },
   {
     key: "spiritual_places",
     color: "pink",
+    primary: true,
     labels: {
       en: "Spiritual Places, Other Temples & Auditoriums",
       te: "ఆధ్యాత్మిక ప్రదేశాలు, ఇతర దేవాలయాలు & ఆడిటోరియంలు",
@@ -82,23 +83,39 @@ const CATS = [
     },
   },
   {
+    key: "accommodation",
+    color: "yellow",
+    primary: true,
+    labels: { en: "Accommodation & Guest Houses", te: "వసతి & అతిథి గృహాలు", hi: "आवास एवं अतिथि गृह" },
+  },
+  {
     key: "water_restrooms",
     color: "blue",
+    primary: true,
     labels: { en: "Water & Restrooms", te: "నీరు & విశ్రాంతి గదులు", hi: "पानी एवं शौचालय" },
   },
   {
     key: "canteens_shopping",
     color: "yellow",
+    primary: true,
     labels: { en: "Canteens, Refreshments & Shopping", te: "క్యాంటీన్లు, ఫలహారాలు & షాపింగ్", hi: "कैंटीन, जलपान और खरीदारी" },
+  },
+  {
+    key: "gates",
+    color: "blue",
+    primary: true,
+    labels: { en: "Entry/Exit Gates", te: "ప్రవేశ/నిష్క్రమణ గేట్లు", hi: "प्रवेश/निकास द्वार" },
   },
   {
     key: "library",
     color: "yellow",
+    primary: false,
     labels: { en: "Library & Book Stalls", te: "లైబ్రరీ & బుక్ స్టాల్స్", hi: "पुस्तकालय एवं पुस्तक स्टॉल" },
   },
   {
     key: "offices",
     color: "blue",
+    primary: false,
     labels: {
       en: "Offices - PRO, Central Trust, Sadhana Trust, Police Station, Security Office",
       te: "కార్యాలయాలు - PRO, సెంట్రల్ ట్రస్ట్, సాధన ట్రస్ట్, పోలీస్ స్టేషన్, భద్రతా కార్యాలయం",
@@ -106,13 +123,9 @@ const CATS = [
     },
   },
   {
-    key: "gates",
-    color: "blue",
-    labels: { en: "Entry/Exit Gates", te: "ప్రవేశ/నిష్క్రమణ గేట్లు", hi: "प्रवेश/निकास द्वार" },
-  },
-  {
     key: "wheelchair_buggy",
     color: "blue",
+    primary: false,
     labels: {
       en: "Wheelchair, Buggy & Cloak Room Points",
       te: "వీల్‌చైర్, బగ్గీ & క్లోక్ రూమ్ పాయింట్లు",
@@ -207,10 +220,13 @@ function getDirectionsMap() {
   return directionsMap;
 }
 
+let catsExpanded = false;
+
 function renderCatGrid() {
   const grid = document.getElementById("cat-grid");
   grid.innerHTML = "";
-  for (const cat of CATS) {
+  const visibleCats = catsExpanded ? CATS : CATS.filter((c) => c.primary);
+  for (const cat of visibleCats) {
     const btn = document.createElement("button");
     btn.className = "cat-tile" + (activeCategory === cat.key ? " active" : "");
     btn.dataset.cat = cat.key;
@@ -245,6 +261,12 @@ function renderCatGrid() {
     grid.appendChild(btn);
   }
 }
+
+document.getElementById("more-cats-toggle").addEventListener("click", () => {
+  catsExpanded = !catsExpanded;
+  renderCatGrid();
+  updatePanelVisibility();
+});
 
 // Categories whose places split into 2+ distinct facility types (e.g. Water
 // & Restrooms) ask "which kind?" first via this picker, then resolve
@@ -319,6 +341,7 @@ function resetFeedbackForm() {
 }
 
 function openFeedback() {
+  closeMenuPopover();
   resetFeedbackForm();
   document.getElementById("feedback-backdrop").classList.add("open");
 }
@@ -326,6 +349,25 @@ function openFeedback() {
 function closeFeedback() {
   document.getElementById("feedback-backdrop").classList.remove("open");
 }
+
+function closeMenuPopover() {
+  document.getElementById("menu-popover").style.display = "none";
+  document.getElementById("menu-btn").classList.remove("active");
+}
+
+document.getElementById("menu-btn").addEventListener("click", (e) => {
+  e.stopPropagation();
+  const popover = document.getElementById("menu-popover");
+  const opening = popover.style.display === "none";
+  popover.style.display = opening ? "flex" : "none";
+  document.getElementById("menu-btn").classList.toggle("active", opening);
+});
+document.addEventListener("click", (e) => {
+  const popover = document.getElementById("menu-popover");
+  if (popover.style.display !== "none" && !popover.contains(e.target) && e.target.id !== "menu-btn") {
+    closeMenuPopover();
+  }
+});
 
 document.getElementById("feedback-open").addEventListener("click", openFeedback);
 document.getElementById("feedback-close").addEventListener("click", closeFeedback);
@@ -416,6 +458,9 @@ function statusPill(poi) {
 function updatePanelVisibility() {
   const idle = !activeCategory && !searchQuery;
   document.getElementById("cat-grid").style.display = idle ? "" : "none";
+  const moreToggle = document.getElementById("more-cats-toggle");
+  moreToggle.style.display = idle ? "" : "none";
+  moreToggle.textContent = catsExpanded ? t("fewer_categories") : t("more_categories");
 
   const title = document.getElementById("near-you-title");
   const label = document.getElementById("near-you-label");
@@ -696,6 +741,7 @@ function setupLangSwitcher() {
       localStorage.setItem("pranams_lang", currentLang);
       chips.forEach((b) => b.classList.toggle("active", b === btn));
       applyStaticI18n();
+      closeMenuPopover();
       await reloadPois();
     });
   });
