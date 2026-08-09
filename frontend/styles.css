@@ -91,7 +91,7 @@ html, body { margin: 0; height: 100%; background: #ffffff; color: var(--ink); fo
   display: flex; align-items: center; gap: 8px;
   padding: 11px 14px; border-radius: 14px;
   background: var(--paper-raised); border: 1px solid var(--line);
-  color: var(--ink-soft); font: 500 13px/1 var(--font-body);
+  color: var(--ink-soft); font: 500 16px/1 var(--font-body);
 }
 .search-clear {
   flex: none; width: 20px; height: 20px; padding: 0; border: none; border-radius: 50%;
@@ -188,7 +188,7 @@ html, body { margin: 0; height: 100%; background: #ffffff; color: var(--ink); fo
 .feedback-comment {
   width: 100%; resize: vertical; padding: 11px 14px; border-radius: 14px;
   background: var(--paper-raised); border: 1px solid var(--line);
-  color: var(--ink); font: 500 13px/1.4 var(--font-body);
+  color: var(--ink); font: 500 16px/1.4 var(--font-body);
 }
 .feedback-status { font: 600 12px/1.4 var(--font-body); margin: 0; }
 .feedback-status.error { color: var(--pink); }
