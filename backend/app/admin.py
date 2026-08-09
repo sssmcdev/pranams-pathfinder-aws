@@ -37,12 +37,23 @@ class AdminAuth(AuthenticationBackend):
         return bool(request.session.get("authenticated"))
 
 
+def _photo_thumb(model, attribute):
+    from markupsafe import Markup
+
+    url = model.photo_url
+    if not url:
+        return Markup('<span class="text-muted">—</span>')
+    src = url if url.startswith("http://") or url.startswith("https://") else f"/{url}"
+    return Markup(f'<img src="{src}" class="admin-list-thumb" alt="">')
+
+
 class POIAdmin(ModelView, model=POIRecord):
     name = "Point of Interest"
     name_plural = "Points of Interest"
     icon = "fa-solid fa-map-pin"
 
     column_list = [
+        POIRecord.photo_url,
         POIRecord.name,
         POIRecord.category,
         POIRecord.facility_type,
@@ -53,9 +64,20 @@ class POIAdmin(ModelView, model=POIRecord):
         POIRecord.closed_override,
         POIRecord.active,
     ]
+    column_labels = {
+        POIRecord.photo_url: "Photo",
+        POIRecord.facility_type: "Facility Type",
+        POIRecord.lat: "Latitude",
+        POIRecord.lon: "Longitude",
+        POIRecord.search_terms: "Search Terms",
+        POIRecord.opening_hours: "Opening Hours",
+        POIRecord.closed_override: "Closed Override",
+        POIRecord.active: "Active",
+    }
     column_searchable_list = [POIRecord.name, POIRecord.search_terms]
     column_sortable_list = [POIRecord.name, POIRecord.category]
     column_formatters = {
+        POIRecord.photo_url: _photo_thumb,
         POIRecord.category: lambda m, a: CATEGORY_LABELS.get(m.category, m.category),
         POIRecord.facility_type: lambda m, a: FACILITY_TYPE_LABELS.get(m.facility_type, m.facility_type),
     }
@@ -135,7 +157,9 @@ class SubPlaceAdmin(ModelView, model=SubPlace):
     name_plural = "Sub-places & Entrances"
     icon = "fa-solid fa-diamond"
 
-    column_list = [SubPlace.name, SubPlace.poi, SubPlace.gender, SubPlace.lat, SubPlace.lon]
+    column_list = [SubPlace.photo_url, SubPlace.name, SubPlace.poi, SubPlace.gender, SubPlace.lat, SubPlace.lon]
+    column_labels = {SubPlace.photo_url: "Photo"}
+    column_formatters = {SubPlace.photo_url: _photo_thumb}
     column_sortable_list = [SubPlace.name]
     form_include_pk = True
     form_overrides = {"gender": SelectField}

@@ -1,0 +1,138 @@
+{% extends "sqladmin/base.html" %}
+{% from 'sqladmin/_macros.html' import display_menu %}
+
+{% block head_tail %}
+{{ super() }}
+<style>
+  /* --- Collapsible left sidebar ---
+     Tabler's .navbar-vertical is already `position:fixed` with a
+     `transition:transform .3s`, meant for its own mobile off-canvas
+     toggle. We reuse that transition for a desktop collapse too,
+     driven by a class on <html> (not <body>) so the pre-paint script
+     below can apply it before first render with no flash. */
+  #admin-sidebar-toggle {
+    position: fixed; top: 14px; left: 14px; z-index: 1040;
+    width: 34px; height: 34px; border-radius: 8px;
+    border: 1px solid var(--tblr-border-color); background: #fff;
+    display: none; align-items: center; justify-content: center; cursor: pointer;
+    box-shadow: 0 1px 3px rgba(0,0,0,.12);
+  }
+  html.sidebar-collapsed #admin-sidebar-toggle { display: flex; }
+  #sidebar-collapse-btn { margin-left: auto; flex: none; }
+
+  @media (min-width: 992px) {
+    html.sidebar-collapsed .navbar-vertical.navbar-expand-lg { transform: translateX(-15rem); }
+    html.sidebar-collapsed .navbar-expand-lg.navbar-vertical ~ .page-wrapper { margin-left: 0; }
+  }
+
+  /* --- Table columns wrap instead of horizontal-scrolling ---
+     Bootstrap's `text-nowrap` (added by sqladmin's list.html) forces
+     every cell's min-content to its full unwrapped width, which is
+     what pushes the table past its container and triggers the
+     .table-responsive scrollbar. Letting cells wrap at word
+     boundaries keeps the table inside the card at width:100% with no
+     scroll. Deliberately NOT overflow-wrap:anywhere/word-break —
+     that lets auto table layout squeeze a column below a single
+     word's natural width, breaking short headers like "Active" into
+     "Acti"/"ve" instead of just giving that column enough room. */
+  .table-responsive table.text-nowrap,
+  .table-responsive table.text-nowrap th,
+  .table-responsive table.text-nowrap td {
+    white-space: normal !important;
+  }
+
+  .admin-list-thumb {
+    width: 56px; height: 56px; object-fit: cover; border-radius: 8px; display: block;
+  }
+</style>
+<script>
+  (function () {
+    if (localStorage.getItem("pranams_admin_sidebar_collapsed") === "1") {
+      document.documentElement.classList.add("sidebar-collapsed");
+    }
+  })();
+</script>
+{% endblock %}
+
+{% block body %}
+<button type="button" id="admin-sidebar-toggle" title="Show sidebar" aria-label="Show sidebar">
+  <i class="fa-solid fa-bars"></i>
+</button>
+<div class="wrapper">
+  <aside class="navbar navbar-expand-lg navbar-vertical navbar-expand-md navbar-dark" data-bs-theme="dark">
+    <div class="container-fluid">
+      <h1 class="navbar-brand navbar-brand-autodark">
+        <a href="{{ url_for('admin:index') }}">
+          {% if admin.logo_url %}
+          <img src="{{ admin.logo_url }}" width="{{ admin.logo_width }}" height="{{ admin.logo_height }}" alt="{{ admin.title }}" class="navbar-brand-logo" />
+          {% else %}
+          <h3>{{ admin.title }}</h3>
+          {% endif %}
+        </a>
+      </h1>
+      <button type="button" id="sidebar-collapse-btn" class="btn btn-icon btn-ghost-secondary" title="Collapse sidebar" aria-label="Collapse sidebar">
+        <i class="fa-solid fa-angles-left"></i>
+      </button>
+      <nav class="navbar navbar-expand-sm shadow-none" id="navbar-menu">
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent"
+          aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarSupportedContent">
+          {{ display_menu(admin._menu, request) }}
+        </div>
+      </nav>
+      {% if admin.authentication_backend %}
+      <a href="{{ request.url_for('admin:logout') }}" class="btn btn-secondary btn-icon m-2 px-2">
+        <span class="me-2">Logout</span>
+        <i class="fa fa-sign-out"></i>
+      </a>
+      {% endif %}
+    </div>
+  </aside>
+  <div class="page-wrapper">
+    <div class="container-fluid">
+      <div class="page-header d-print-none">
+        {% block content_header %}
+        <div class="row align-items-center">
+          <div class="col">
+            <h2 class="page-title">{{ title }}</h2>
+            <div class="page-pretitle">{{ subtitle }}</div>
+          </div>
+        </div>
+        {% endblock %}
+      </div>
+    </div>
+    <div class="page-body flex-grow-1">
+      <div class="container-fluid">
+        <div class="row row-deck row-cards">
+          {% block content %} {% endblock %}
+          {% block flash %}
+          {% include 'sqladmin/flash.html' %}
+          {% endblock %}
+          {% block secret_modal %}
+          {% include 'sqladmin/secret_modal.html' %}
+          {% endblock %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block tail %}
+{{ super() }}
+<script>
+  (function () {
+    var KEY = "pranams_admin_sidebar_collapsed";
+    function setCollapsed(collapsed) {
+      document.documentElement.classList.toggle("sidebar-collapsed", collapsed);
+      localStorage.setItem(KEY, collapsed ? "1" : "0");
+    }
+    var collapseBtn = document.getElementById("sidebar-collapse-btn");
+    var expandBtn = document.getElementById("admin-sidebar-toggle");
+    if (collapseBtn) collapseBtn.addEventListener("click", function () { setCollapsed(true); });
+    if (expandBtn) expandBtn.addEventListener("click", function () { setCollapsed(false); });
+  })();
+</script>
+{% endblock %}
