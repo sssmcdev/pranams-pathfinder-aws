@@ -14,6 +14,7 @@ let currentLang = localStorage.getItem("pranams_lang") || "en";
 
 const I18N = {
   search_placeholder: { en: "Search water, toilets, Mandir…", te: "నీరు, మరుగుదొడ్లు, మందిరాన్ని వెతకండి...", hi: "पानी, शौचालय, मंदिर खोजें..." },
+  search_prefix: { en: "Search", te: "వెతకండి", hi: "खोजें" },
   near_you: { en: "Near you", te: "మీ దగ్గర", hi: "आप के पास" },
   start_directions: { en: "Start directions", te: "దిశలను ప్రారంభించండి", hi: "दिशा निर्देश प्रारंभ करें" },
   close: { en: "Close", te: "మూసివేయి", hi: "बंद करना" },
@@ -21,7 +22,6 @@ const I18N = {
   closed: { en: "Closed", te: "మూసివేయబడింది", hi: "बंद किया हुआ" },
   choose_entrance: { en: "Choose a facility", te: "సదుపాయాన్ని ఎంచుకోండి", hi: "एक सुविधा चुनें" },
   open_in_maps: { en: "Open in Google Maps", te: "Google Mapsలో తెరవండి", hi: "Google मानचित्र में खोलें" },
-  choose_type: { en: "What are you looking for?", te: "మీరు ఏమి వెతుకుతున్నారు?", hi: "आप क्या ढूँढ रहे हैं?" },
   give_feedback: { en: "Give feedback", te: "అభిప్రాయం తెలియజేయండి", hi: "प्रतिक्रिया दें" },
   feedback_title: { en: "Feedback", te: "అభిప్రాయం", hi: "प्रतिक्रिया" },
   feedback_navigation: { en: "Ease of finding places", te: "స్థలాలను కనుగొనడంలో సౌలభ్యం", hi: "स्थान खोजने में आसानी" },
@@ -178,6 +178,7 @@ function facilityTypeLabel(key) {
 
 let allPois = [];
 let activeCategory = null;
+let activeFacilityType = null;
 let searchQuery = "";
 let userPos = SHANTHI_BHAVAN_POS;
 let directionsMap = null;
@@ -239,21 +240,22 @@ function renderCatGrid() {
     btn.addEventListener("click", () => {
       const activating = activeCategory !== cat.key;
       activeCategory = activating ? cat.key : null;
+      activeFacilityType = null; // switching categories always starts unfiltered
       renderAll();
 
-      // A category with exactly one place doesn't need the extra step of
-      // filtering the list and then tapping it — just open it directly.
-      // A category whose places split into 2+ distinct facility types
-      // (e.g. Water & Restrooms) asks "which kind?" first, then resolves
-      // straight to the nearest match — no intermediate list either.
-      // Categories with real choices but no facility-type split still show the list.
+      // A category with exactly one place total doesn't need the extra
+      // step of filtering the list and then tapping it — just open it
+      // directly. Everything else (including categories that split into
+      // multiple facility types) shows the list; the facility-type filter
+      // chips above it (see renderFacilityFilters) narrow it further,
+      // in place, rather than forcing a "which kind?" modal first — that
+      // modal used to silently jump straight to the nearest match of a
+      // type with no way to reach any other same-type place (e.g. two
+      // temples, tapping "Temple" only ever reached whichever was closer).
       if (activating) {
         logEvent({ event_type: "category", category: cat.key });
         const matches = allPois.filter((p) => p.category === cat.key);
-        const types = [...new Set(matches.map((p) => p.facility_type).filter(Boolean))];
-        if (types.length >= 2) {
-          openTypePicker(cat.key, matches, types);
-        } else if (matches.length === 1) {
+        if (matches.length === 1) {
           openSheet(matches[0]);
         }
       }
@@ -268,45 +270,41 @@ document.getElementById("more-cats-toggle").addEventListener("click", () => {
   updatePanelVisibility();
 });
 
-// Categories whose places split into 2+ distinct facility types (e.g. Water
-// & Restrooms) ask "which kind?" first via this picker, then resolve
-// straight to the single nearest match of that type — no list step, per
-// the original request: "the nearest water point should be shown."
-function openTypePicker(catKey, matches, types) {
-  const grid = document.getElementById("type-picker-grid");
-  grid.innerHTML = "";
+// Shown only when the active category's places actually split into 2+
+// distinct facility types (e.g. Temple / Auditorium under Spiritual
+// Places) — narrows the list in place; tapping the active chip again
+// clears back to the full category, same toggle convention as the
+// category tiles themselves.
+function renderFacilityFilters() {
+  const row = document.getElementById("facility-filter-row");
+  row.innerHTML = "";
+  if (!activeCategory) {
+    row.style.display = "none";
+    return;
+  }
+  const matches = allPois.filter((p) => p.category === activeCategory);
+  const types = [...new Set(matches.map((p) => p.facility_type).filter(Boolean))];
+  if (types.length < 2) {
+    row.style.display = "none";
+    return;
+  }
+  row.style.display = "flex";
+  const color = CAT_COLOR[activeCategory];
   for (const type of types) {
-    const btn = document.createElement("button");
-    btn.className = "cat-tile";
-    btn.title = facilityTypeLabel(type);
-    const color = CAT_COLOR[catKey];
-    btn.style.background = `var(--${color}-soft)`;
-    btn.innerHTML = `
-      <span class="ic" style="background:var(--pink); color:#fff">${ICONS[catKey]}</span>
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.className = "facility-chip" + (activeFacilityType === type ? " active" : "");
+    chip.innerHTML = `
+      <span class="ic" style="background:var(--${color}-soft); color:var(--${color})">${ICONS[activeCategory]}</span>
       <span>${facilityTypeLabel(type)}</span>
     `;
-    btn.addEventListener("click", () => {
-      const ofType = matches
-        .filter((p) => p.facility_type === type)
-        .map((p) => ({ ...p, distance_m: haversineM(userPos.lat, userPos.lon, p.lat, p.lon) }))
-        .sort((a, b) => a.distance_m - b.distance_m);
-      closeTypePicker();
-      if (ofType.length > 0) openSheet(ofType[0]);
+    chip.addEventListener("click", () => {
+      activeFacilityType = activeFacilityType === type ? null : type;
+      renderList();
     });
-    grid.appendChild(btn);
+    row.appendChild(chip);
   }
-  document.getElementById("type-picker-title").textContent = t("choose_type");
-  document.getElementById("type-picker-backdrop").classList.add("open");
 }
-
-function closeTypePicker() {
-  document.getElementById("type-picker-backdrop").classList.remove("open");
-}
-
-document.getElementById("type-picker-close").addEventListener("click", closeTypePicker);
-document.getElementById("type-picker-backdrop").addEventListener("click", (e) => {
-  if (e.target.id === "type-picker-backdrop") closeTypePicker();
-});
 
 const feedbackRatings = { navigation: 0, info_accuracy: 0, overall: 0 };
 
@@ -426,6 +424,7 @@ const PINNED_POI_IDS = ["accomganeshgate", "accommain"];
 function filteredPois() {
   return allPois
     .filter((p) => !activeCategory || p.category === activeCategory)
+    .filter((p) => !activeFacilityType || p.facility_type === activeFacilityType)
     .filter((p) => matchesSearch(p, searchQuery))
     .map((p) => ({ ...p, distance_m: haversineM(userPos.lat, userPos.lon, p.lat, p.lon) }))
     .sort((a, b) => {
@@ -462,6 +461,9 @@ function updatePanelVisibility() {
   moreToggle.style.display = idle ? "" : "none";
   moreToggle.textContent = catsExpanded ? t("fewer_categories") : t("more_categories");
 
+  renderFacilityFilters();
+  updateSearchPlaceholder();
+
   const title = document.getElementById("near-you-title");
   const label = document.getElementById("near-you-label");
   const clearX = document.getElementById("near-you-clear-x");
@@ -478,11 +480,28 @@ function updatePanelVisibility() {
     title.classList.add("clearable");
     title.onclick = () => {
       activeCategory = null;
+      activeFacilityType = null;
       renderAll();
     };
   } else {
     title.style.display = "none";
   }
+}
+
+// "Search water, toilets, Mandir…" globally; narrows to that category's
+// own facility types once one is active (e.g. "Search Temple,
+// Auditorium…" under Spiritual Places) — falls back to the category's
+// own name when it has no facility-type split to draw examples from.
+function updateSearchPlaceholder() {
+  const input = document.getElementById("search-input");
+  if (!activeCategory) {
+    input.placeholder = t("search_placeholder");
+    return;
+  }
+  const matches = allPois.filter((p) => p.category === activeCategory);
+  const types = [...new Set(matches.map((p) => p.facility_type).filter(Boolean))];
+  const examples = types.length >= 2 ? types.map(facilityTypeLabel).join(", ") : catLabelByKey(activeCategory);
+  input.placeholder = `${t("search_prefix")} ${examples}…`;
 }
 
 function renderList() {
@@ -636,7 +655,10 @@ document.getElementById("search-input").addEventListener("input", (e) => {
   // the search would keep the grid hidden with no search text left to
   // explain why, since the grid-tap deselect gesture isn't reachable once
   // the tile itself is hidden (see updatePanelVisibility).
-  if (!searchQuery) activeCategory = null;
+  if (!searchQuery) {
+    activeCategory = null;
+    activeFacilityType = null;
+  }
   renderAll(); // not just renderList() — clearing activeCategory here needs the
   // grid tiles re-rendered too, so the previously-active tile's highlight clears
 
@@ -655,6 +677,7 @@ document.getElementById("search-clear").addEventListener("click", () => {
   input.value = "";
   searchQuery = "";
   activeCategory = null; // same "clear = back to home" behavior as backspacing it out
+  activeFacilityType = null;
   document.getElementById("search-clear").style.display = "none";
   renderAll();
 });
@@ -709,11 +732,10 @@ function closeDirectionsView() {
 document.getElementById("directions-back").addEventListener("click", closeDirectionsView);
 
 function applyStaticI18n() {
-  document.getElementById("search-input").placeholder = t("search_placeholder");
+  updateSearchPlaceholder();
   document.getElementById("near-you-label").textContent = t("near_you");
   document.getElementById("sheet-directions").textContent = t("start_directions");
   document.getElementById("sheet-close").textContent = t("close");
-  document.getElementById("type-picker-close").textContent = t("close");
 
   document.getElementById("feedback-open").textContent = t("give_feedback");
   document.getElementById("feedback-title").textContent = t("feedback_title");
