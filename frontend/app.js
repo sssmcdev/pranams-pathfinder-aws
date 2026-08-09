@@ -15,6 +15,7 @@ let currentLang = localStorage.getItem("pranams_lang") || "en";
 const I18N = {
   search_placeholder: { en: "Search water, toilets, Mandir…", te: "నీరు, మరుగుదొడ్లు, మందిరాన్ని వెతకండి...", hi: "पानी, शौचालय, मंदिर खोजें..." },
   search_prefix: { en: "Search", te: "వెతకండి", hi: "खोजें" },
+  filter_all: { en: "All", te: "అన్నీ", hi: "सभी" },
   near_you: { en: "Near you", te: "మీ దగ్గర", hi: "आप के पास" },
   start_directions: { en: "Start directions", te: "దిశలను ప్రారంభించండి", hi: "दिशा निर्देश प्रारंभ करें" },
   close: { en: "Close", te: "మూసివేయి", hi: "बंद करना" },
@@ -289,20 +290,34 @@ function renderFacilityFilters() {
     return;
   }
   row.style.display = "flex";
-  const color = CAT_COLOR[activeCategory];
-  for (const type of types) {
+
+  const catColor = CAT_COLOR[activeCategory];
+  // Type-specific chips deliberately contrast against the category's own
+  // color (used by "All" and by every POI row in this category), so a
+  // filter chip never reads as just another place tile.
+  const filterColor = catColor === "blue" ? "pink" : "blue";
+
+  function addChip(label, color, isActive, onClick) {
     const chip = document.createElement("button");
     chip.type = "button";
-    chip.className = "facility-chip" + (activeFacilityType === type ? " active" : "");
+    chip.className = "facility-chip" + (isActive ? " active" : "");
     chip.innerHTML = `
       <span class="ic" style="background:var(--${color}-soft); color:var(--${color})">${ICONS[activeCategory]}</span>
-      <span>${facilityTypeLabel(type)}</span>
+      <span class="chip-label">${label}</span>
     `;
-    chip.addEventListener("click", () => {
-      activeFacilityType = activeFacilityType === type ? null : type;
+    chip.addEventListener("click", onClick);
+    row.appendChild(chip);
+  }
+
+  addChip(t("filter_all"), catColor, activeFacilityType === null, () => {
+    activeFacilityType = null;
+    renderList();
+  });
+  for (const type of types) {
+    addChip(facilityTypeLabel(type), filterColor, activeFacilityType === type, () => {
+      activeFacilityType = type;
       renderList();
     });
-    row.appendChild(chip);
   }
 }
 
@@ -412,28 +427,33 @@ function matchesSearch(poi, q) {
   return (poi.search_terms || "").toLowerCase().includes(q);
 }
 
-// Hardcoded pin order — these ids always float to the top of any list
-// they appear in (idle "Near you", category-filtered, or search),
-// ahead of every other place, in this exact order, regardless of
-// actual distance. Everything else keeps the normal distance sort
-// behind them. Not category-scoped on purpose: idle "Near you" mixes
-// every category together, and these should outrank other
-// accommodation buildings there too, not just inside the category tile.
-const PINNED_POI_IDS = ["accomganeshgate", "accommain"];
+// Hardcoded pin order, scoped to the Accommodation category only — these
+// ids lead the list (in this order) when browsing that category, ahead
+// of every other accommodation place regardless of actual distance.
+// Deliberately NOT applied in idle "Near you" (which mixes every
+// category by distance) — pinning an office above a gate that's
+// literally next to you read as wrong there, so that list stays pure
+// distance order.
+const PINNED_POI_ORDER = {
+  accommodation: ["accomganeshgate", "accommain"],
+};
 
 function filteredPois() {
+  const pinned = activeCategory && PINNED_POI_ORDER[activeCategory];
   return allPois
     .filter((p) => !activeCategory || p.category === activeCategory)
     .filter((p) => !activeFacilityType || p.facility_type === activeFacilityType)
     .filter((p) => matchesSearch(p, searchQuery))
     .map((p) => ({ ...p, distance_m: haversineM(userPos.lat, userPos.lon, p.lat, p.lon) }))
     .sort((a, b) => {
-      const ai = PINNED_POI_IDS.indexOf(a.id);
-      const bi = PINNED_POI_IDS.indexOf(b.id);
-      if (ai !== -1 || bi !== -1) {
-        if (ai === -1) return 1;
-        if (bi === -1) return -1;
-        return ai - bi;
+      if (pinned) {
+        const ai = pinned.indexOf(a.id);
+        const bi = pinned.indexOf(b.id);
+        if (ai !== -1 || bi !== -1) {
+          if (ai === -1) return 1;
+          if (bi === -1) return -1;
+          return ai - bi;
+        }
       }
       return a.distance_m - b.distance_m;
     });
