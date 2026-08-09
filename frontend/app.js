@@ -372,28 +372,27 @@ function matchesSearch(poi, q) {
   return (poi.search_terms || "").toLowerCase().includes(q);
 }
 
-// Hardcoded pin order for specific POI ids, per category — these come
-// first (in this exact order), everything else keeps the normal
-// distance sort behind them.
-const PINNED_POI_ORDER = {
-  accommodation: ["accomganeshgate", "accommain"],
-};
+// Hardcoded pin order — these ids always float to the top of any list
+// they appear in (idle "Near you", category-filtered, or search),
+// ahead of every other place, in this exact order, regardless of
+// actual distance. Everything else keeps the normal distance sort
+// behind them. Not category-scoped on purpose: idle "Near you" mixes
+// every category together, and these should outrank other
+// accommodation buildings there too, not just inside the category tile.
+const PINNED_POI_IDS = ["accomganeshgate", "accommain"];
 
 function filteredPois() {
-  const pinned = activeCategory && PINNED_POI_ORDER[activeCategory];
   return allPois
     .filter((p) => !activeCategory || p.category === activeCategory)
     .filter((p) => matchesSearch(p, searchQuery))
     .map((p) => ({ ...p, distance_m: haversineM(userPos.lat, userPos.lon, p.lat, p.lon) }))
     .sort((a, b) => {
-      if (pinned) {
-        const ai = pinned.indexOf(a.id);
-        const bi = pinned.indexOf(b.id);
-        if (ai !== -1 || bi !== -1) {
-          if (ai === -1) return 1;
-          if (bi === -1) return -1;
-          return ai - bi;
-        }
+      const ai = PINNED_POI_IDS.indexOf(a.id);
+      const bi = PINNED_POI_IDS.indexOf(b.id);
+      if (ai !== -1 || bi !== -1) {
+        if (ai === -1) return 1;
+        if (bi === -1) return -1;
+        return ai - bi;
       }
       return a.distance_m - b.distance_m;
     });
