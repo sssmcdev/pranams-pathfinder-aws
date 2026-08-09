@@ -78,7 +78,7 @@ const CATS = [
     color: "pink",
     primary: true,
     labels: {
-      en: "Spiritual Places, Other Temples & Auditoriums",
+      en: "Other Temples",
       te: "ఆధ్యాత్మిక ప్రదేశాలు, ఇతర దేవాలయాలు & ఆడిటోరియంలు",
       hi: "आध्यात्मिक स्थल, अन्य मंदिर एवं सभागार",
     },
@@ -87,7 +87,7 @@ const CATS = [
     key: "accommodation",
     color: "yellow",
     primary: true,
-    labels: { en: "Accommodation & Guest Houses", te: "వసతి & అతిథి గృహాలు", hi: "आवास एवं अतिथि गृह" },
+    labels: { en: "Stay", te: "వసతి & అతిథి గృహాలు", hi: "आवास एवं अतिथि गृह" },
   },
   {
     key: "water_restrooms",
@@ -99,26 +99,26 @@ const CATS = [
     key: "canteens_shopping",
     color: "yellow",
     primary: true,
-    labels: { en: "Canteens, Refreshments & Shopping", te: "క్యాంటీన్లు, ఫలహారాలు & షాపింగ్", hi: "कैंटीन, जलपान और खरीदारी" },
+    labels: { en: "Food & Shopping", te: "క్యాంటీన్లు, ఫలహారాలు & షాపింగ్", hi: "कैंटीन, जलपान और खरीदारी" },
   },
   {
     key: "gates",
     color: "blue",
     primary: true,
-    labels: { en: "Entry/Exit Gates", te: "ప్రవేశ/నిష్క్రమణ గేట్లు", hi: "प्रवेश/निकास द्वार" },
+    labels: { en: "Gates", te: "ప్రవేశ/నిష్క్రమణ గేట్లు", hi: "प्रवेश/निकास द्वार" },
   },
   {
     key: "library",
     color: "yellow",
     primary: false,
-    labels: { en: "Library & Book Stalls", te: "లైబ్రరీ & బుక్ స్టాల్స్", hi: "पुस्तकालय एवं पुस्तक स्टॉल" },
+    labels: { en: "Library, Books & Photos", te: "లైబ్రరీ & బుక్ స్టాల్స్", hi: "पुस्तकालय एवं पुस्तक स्टॉल" },
   },
   {
     key: "offices",
     color: "blue",
     primary: false,
     labels: {
-      en: "Offices - PRO, Central Trust, Sadhana Trust, Police Station, Security Office",
+      en: "Important Offices",
       te: "కార్యాలయాలు - PRO, సెంట్రల్ ట్రస్ట్, సాధన ట్రస్ట్, పోలీస్ స్టేషన్, భద్రతా కార్యాలయం",
       hi: "कार्यालय - पीआरओ, सेंट्रल ट्रस्ट, साधना ट्रस्ट, पुलिस स्टेशन, सुरक्षा कार्यालय",
     },
@@ -128,7 +128,7 @@ const CATS = [
     color: "blue",
     primary: false,
     labels: {
-      en: "Wheelchair, Buggy & Cloak Room Points",
+      en: "Wheelchair, Buggy, Cloak Room",
       te: "వీల్‌చైర్, బగ్గీ & క్లోక్ రూమ్ పాయింట్లు",
       hi: "व्हीलचेयर, बग्गी एवं क्लोक रूम पॉइंट",
     },
