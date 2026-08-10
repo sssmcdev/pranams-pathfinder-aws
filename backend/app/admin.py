@@ -178,6 +178,7 @@ class SubPlaceAdmin(ModelView, model=SubPlace):
         SubPlace.gender,
         SubPlace.sort_order,
         SubPlace.photo_url,
+        SubPlace.search_terms,
     ]
     form_widget_args = {
         "name_te": {"placeholder": "Telugu translation of Name (optional)"},
@@ -185,6 +186,7 @@ class SubPlaceAdmin(ModelView, model=SubPlace):
         "lat": {"placeholder": "Filled in automatically, or enter manually — the entrance's own point, not the building center"},
         "lon": {"placeholder": "Filled in automatically, or enter manually — the entrance's own point, not the building center"},
         "photo_url": {"placeholder": "Pick a photo from the gallery above, or paste a URL — falls back to the place's own photo if left blank"},
+        "search_terms": {"placeholder": "Comma-separated words visitors might search, e.g. gents toilet, mens room"},
     }
 
 

@@ -86,6 +86,7 @@ class SubPlace(BaseModel):
     lon: float
     gender: Gender | None = None
     photo_url: str | None = None
+    search_terms: str | None = None
 
 
 class POI(BaseModel):

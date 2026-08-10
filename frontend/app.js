@@ -429,7 +429,13 @@ document.getElementById("feedback-submit").addEventListener("click", async () =>
 function matchesSearch(poi, q) {
   if (!q) return true;
   if (poi.name.toLowerCase().includes(q)) return true;
-  return (poi.search_terms || "").toLowerCase().includes(q);
+  if ((poi.search_terms || "").toLowerCase().includes(q)) return true;
+  // A sub-place match (e.g. "gents toilet" on a Restrooms building's
+  // Gents entrance) surfaces the parent POI — visitors search for the
+  // specific facility, not the building it happens to live inside.
+  return (poi.sub_places || []).some(
+    (sub) => sub.name.toLowerCase().includes(q) || (sub.search_terms || "").toLowerCase().includes(q)
+  );
 }
 
 // Hardcoded pin order, scoped to the Accommodation category only — these

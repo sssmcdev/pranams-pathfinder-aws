@@ -5,7 +5,7 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.db_models import POIRecord
+from app.db_models import POIRecord, SubPlace
 from app.geo import haversine_m
 from app.models import Category, POI, POIWithDistance
 from app.translate import TRANSLATABLE_FIELDS
@@ -45,7 +45,15 @@ async def list_pois(
         query = query.filter(POIRecord.category == category.value)
     if q:
         needle = f"%{q.strip()}%"
-        query = query.filter(or_(POIRecord.name.ilike(needle), POIRecord.search_terms.ilike(needle)))
+        sub_place_match = (
+            db.query(SubPlace.poi_id)
+            .filter(SubPlace.poi_id == POIRecord.id)
+            .filter(or_(SubPlace.name.ilike(needle), SubPlace.search_terms.ilike(needle)))
+            .exists()
+        )
+        query = query.filter(
+            or_(POIRecord.name.ilike(needle), POIRecord.search_terms.ilike(needle), sub_place_match)
+        )
     return [localize(p, lang) for p in query.all()]
 
 
