@@ -430,23 +430,8 @@ function subPlaceMatches(sub, q) {
   return sub.name.toLowerCase().includes(q) || (sub.search_terms || "").toLowerCase().includes(q);
 }
 
-function matchesSearch(poi, q) {
-  if (!q) return true;
-  if (poi.name.toLowerCase().includes(q)) return true;
-  if ((poi.search_terms || "").toLowerCase().includes(q)) return true;
-  // A sub-place match (e.g. "gents toilet" on a Restrooms building's
-  // Gents entrance) surfaces the parent POI — visitors search for the
-  // specific facility, not the building it happens to live inside.
-  return (poi.sub_places || []).some((sub) => subPlaceMatches(sub, q));
-}
-
-// Only relevant when the parent itself doesn't already match the query —
-// a direct parent name/search_terms match should still open the normal
-// entrance picker (or the plain sheet), not silently jump into one
-// specific sub-place the visitor didn't ask for.
-function matchingSubPlace(poi, q) {
-  if (!q || poi.name.toLowerCase().includes(q) || (poi.search_terms || "").toLowerCase().includes(q)) return null;
-  return (poi.sub_places || []).find((sub) => subPlaceMatches(sub, q)) || null;
+function parentMatches(poi, q) {
+  return !q || poi.name.toLowerCase().includes(q) || (poi.search_terms || "").toLowerCase().includes(q);
 }
 
 // Shape a sub-place (an entrance/specific facility within a POI) as its
@@ -477,23 +462,31 @@ const PINNED_POI_ORDER = {
 
 function filteredPois() {
   const pinned = activeCategory && PINNED_POI_ORDER[activeCategory];
+  const q = searchQuery;
   return allPois
     .filter((p) => !activeCategory || p.category === activeCategory)
     .filter((p) => !activeFacilityType || p.facility_type === activeFacilityType)
-    .filter((p) => matchesSearch(p, searchQuery))
-    .map((p) => {
-      const matchedSub = matchingSubPlace(p, searchQuery);
-      // A row that only matched via a sub-place shows and measures *that*
-      // sub-place — its own name and distance — not the parent building's.
-      // Seeing "Sai Kulwant Hall" in the results for "chappal stand" reads
-      // as wrong even though the tap target ends up in the right place.
-      const display = matchedSub ? subPlaceAsSheetTarget(p, matchedSub) : p;
-      return {
-        ...p,
-        distance_m: haversineM(userPos.lat, userPos.lon, display.lat, display.lon),
-        _matchedSubPlace: matchedSub,
-        _displayName: display.name,
-      };
+    .flatMap((p) => {
+      // A direct parent match (or idle browsing, q === "") shows the POI
+      // itself, same as always.
+      if (parentMatches(p, q)) {
+        return [{ ...p, distance_m: haversineM(userPos.lat, userPos.lon, p.lat, p.lon), _matchedSubPlace: null, _displayName: p.name }];
+      }
+      // Otherwise every matching sub-place becomes its own row — a
+      // building with both a Gents and a Ladies Cloak Room, say, needs
+      // two results for "cloak", not just the first one found. Each row
+      // shows and measures *that* sub-place, not the parent building's.
+      return (p.sub_places || [])
+        .filter((sub) => subPlaceMatches(sub, q))
+        .map((sub) => {
+          const display = subPlaceAsSheetTarget(p, sub);
+          return {
+            ...p,
+            distance_m: haversineM(userPos.lat, userPos.lon, display.lat, display.lon),
+            _matchedSubPlace: sub,
+            _displayName: display.name,
+          };
+        });
     })
     .sort((a, b) => {
       if (pinned) {
