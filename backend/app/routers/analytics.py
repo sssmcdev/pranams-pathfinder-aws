@@ -13,6 +13,12 @@ router = APIRouter(prefix="/analytics", tags=["analytics"])
 
 EVENT_TYPES = {"open", "poi_view", "directions", "category", "search"}
 
+# All visitors and admins are in India — every date shown in the dashboard
+# ("Today", the Hits-over-time bucket labels, etc.) should be an IST
+# calendar day, not the server's UTC day. Events are still stored in UTC
+# (created_at); IST is only applied when bucketing/filtering for display.
+IST = timezone(timedelta(hours=5, minutes=30))
+
 RANGE_WINDOWS = {
     "today": timedelta(days=1),
     "7d": timedelta(days=7),
@@ -52,6 +58,7 @@ async def log_event(request: Request, db: Session = Depends(get_db)):
 
 
 def _bucket_key(dt: datetime, granularity: str) -> str:
+    dt = dt.astimezone(IST)
     if granularity == "week":
         year, week, _ = dt.isocalendar()
         return f"{year}-W{week:02d}"
@@ -75,8 +82,16 @@ async def dashboard(
         raise HTTPException(status_code=422, detail="Invalid granularity")
 
     now = datetime.now(timezone.utc)
-    window = RANGE_WINDOWS[range]
-    start = now - window if window else None
+    if range == "today":
+        # "Today" means the current IST calendar day, not a rolling 24h
+        # window — a rolling window can straddle IST midnight and pull in
+        # part of yesterday, which is what made "Today" show events (and
+        # bucket them) under yesterday's date.
+        start = now.astimezone(IST).replace(hour=0, minute=0, second=0, microsecond=0).astimezone(timezone.utc)
+        window = now - start
+    else:
+        window = RANGE_WINDOWS[range]
+        start = now - window if window else None
 
     events = db.query(AnalyticsEvent).filter(AnalyticsEvent.created_at >= start.isoformat()).all() if start else db.query(AnalyticsEvent).all()
 
