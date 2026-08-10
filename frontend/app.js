@@ -426,6 +426,10 @@ document.getElementById("feedback-submit").addEventListener("click", async () =>
   }
 });
 
+function subPlaceMatches(sub, q) {
+  return sub.name.toLowerCase().includes(q) || (sub.search_terms || "").toLowerCase().includes(q);
+}
+
 function matchesSearch(poi, q) {
   if (!q) return true;
   if (poi.name.toLowerCase().includes(q)) return true;
@@ -433,9 +437,31 @@ function matchesSearch(poi, q) {
   // A sub-place match (e.g. "gents toilet" on a Restrooms building's
   // Gents entrance) surfaces the parent POI — visitors search for the
   // specific facility, not the building it happens to live inside.
-  return (poi.sub_places || []).some(
-    (sub) => sub.name.toLowerCase().includes(q) || (sub.search_terms || "").toLowerCase().includes(q)
-  );
+  return (poi.sub_places || []).some((sub) => subPlaceMatches(sub, q));
+}
+
+// Only relevant when the parent itself doesn't already match the query —
+// a direct parent name/search_terms match should still open the normal
+// entrance picker (or the plain sheet), not silently jump into one
+// specific sub-place the visitor didn't ask for.
+function matchingSubPlace(poi, q) {
+  if (!q || poi.name.toLowerCase().includes(q) || (poi.search_terms || "").toLowerCase().includes(q)) return null;
+  return (poi.sub_places || []).find((sub) => subPlaceMatches(sub, q)) || null;
+}
+
+// Shape a sub-place (an entrance/specific facility within a POI) as its
+// own sheet target — same merge used both when a visitor picks an
+// entrance from the picker and when search deep-links straight into one.
+function subPlaceAsSheetTarget(poi, sub) {
+  return {
+    ...poi,
+    name: `${poi.name} — ${sub.name}`,
+    lat: sub.lat,
+    lon: sub.lon,
+    gender: sub.gender,
+    photo_url: sub.photo_url || poi.photo_url,
+    sub_places: [],
+  };
 }
 
 // Hardcoded pin order, scoped to the Accommodation category only — these
@@ -455,7 +481,11 @@ function filteredPois() {
     .filter((p) => !activeCategory || p.category === activeCategory)
     .filter((p) => !activeFacilityType || p.facility_type === activeFacilityType)
     .filter((p) => matchesSearch(p, searchQuery))
-    .map((p) => ({ ...p, distance_m: haversineM(userPos.lat, userPos.lon, p.lat, p.lon) }))
+    .map((p) => ({
+      ...p,
+      distance_m: haversineM(userPos.lat, userPos.lon, p.lat, p.lon),
+      _matchedSubPlace: matchingSubPlace(p, searchQuery),
+    }))
     .sort((a, b) => {
       if (pinned) {
         const ai = pinned.indexOf(a.id);
@@ -550,7 +580,16 @@ function renderList() {
         <span class="dist">${Math.round(poi.distance_m)} m &middot; ${walkMinutes(poi.distance_m)} min</span>
       </span>
     `;
-    row.addEventListener("click", () => openSheet(poi));
+    row.addEventListener("click", () => {
+      if (poi._matchedSubPlace) {
+        // No parent passed — the visitor never saw (or navigated through)
+        // the entrance picker, so Close should fully dismiss back to the
+        // search list, not "go back" into a picker they never opened.
+        openSheet(subPlaceAsSheetTarget(poi, poi._matchedSubPlace));
+      } else {
+        openSheet(poi);
+      }
+    });
     list.appendChild(row);
   }
 }
@@ -626,20 +665,8 @@ function openSheet(poi, parent = null) {
         // Every place opens as a modal before offering directions — a
         // sub-place is no exception, so reuse the same sheet, just with
         // its own name/coordinates/photo layered over the parent's other
-        // details. photo_url falls back to the parent's own photo when
-        // this specific entrance doesn't have one set.
-        openSheet(
-          {
-            ...poi,
-            name: `${poi.name} — ${sub.name}`,
-            lat: sub.lat,
-            lon: sub.lon,
-            gender: sub.gender,
-            photo_url: sub.photo_url || poi.photo_url,
-            sub_places: [],
-          },
-          poi
-        );
+        // details.
+        openSheet(subPlaceAsSheetTarget(poi, sub), poi);
       });
       entranceList.appendChild(row);
     }
