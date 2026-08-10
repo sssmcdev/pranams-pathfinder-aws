@@ -481,11 +481,20 @@ function filteredPois() {
     .filter((p) => !activeCategory || p.category === activeCategory)
     .filter((p) => !activeFacilityType || p.facility_type === activeFacilityType)
     .filter((p) => matchesSearch(p, searchQuery))
-    .map((p) => ({
-      ...p,
-      distance_m: haversineM(userPos.lat, userPos.lon, p.lat, p.lon),
-      _matchedSubPlace: matchingSubPlace(p, searchQuery),
-    }))
+    .map((p) => {
+      const matchedSub = matchingSubPlace(p, searchQuery);
+      // A row that only matched via a sub-place shows and measures *that*
+      // sub-place — its own name and distance — not the parent building's.
+      // Seeing "Sai Kulwant Hall" in the results for "chappal stand" reads
+      // as wrong even though the tap target ends up in the right place.
+      const display = matchedSub ? subPlaceAsSheetTarget(p, matchedSub) : p;
+      return {
+        ...p,
+        distance_m: haversineM(userPos.lat, userPos.lon, display.lat, display.lon),
+        _matchedSubPlace: matchedSub,
+        _displayName: display.name,
+      };
+    })
     .sort((a, b) => {
       if (pinned) {
         const ai = pinned.indexOf(a.id);
@@ -576,7 +585,7 @@ function renderList() {
     row.innerHTML = `
       <span class="ic" style="background:var(--${color}-soft); color:var(--${color})">${ICONS[poi.category]}</span>
       <span class="meta">
-        <span class="name">${poi.name}</span><br>
+        <span class="name">${poi._displayName || poi.name}</span><br>
         <span class="dist">${Math.round(poi.distance_m)} m &middot; ${walkMinutes(poi.distance_m)} min</span>
       </span>
     `;
