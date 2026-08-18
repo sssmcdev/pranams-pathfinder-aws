@@ -47,6 +47,24 @@ const I18N = {
   feedback_error: { en: "Couldn't send feedback. Please try again.", te: "అభిప్రాయాన్ని పంపలేకపోయాము. దయచేసి మళ్లీ ప్రయత్నించండి.", hi: "प्रतिक्रिया नहीं भेजी जा सकी। कृपया पुनः प्रयास करें।" },
   more_categories: { en: "More categories ▾", te: "మరిన్ని వర్గాలు ▾", hi: "अधिक श्रेणियाँ ▾" },
   fewer_categories: { en: "Fewer categories ▴", te: "తక్కువ వర్గాలు ▴", hi: "कम श्रेणियाँ ▴" },
+  geofence_checking: { en: "Checking your location…", te: "మీ లొకేషన్‌ను తనిఖీ చేస్తోంది…", hi: "आपका स्थान जांचा जा रहा है…" },
+  geofence_checking_session: { en: "Checking session…", te: "సెషన్‌ను తనిఖీ చేస్తోంది…", hi: "सत्र जांचा जा रहा है…" },
+  geofence_not_onsite: {
+    en: "Your location is not in Prasanthi Nilayam Ashram. You will not be able to access this app.",
+    te: "మీ లొకేషన్ ప్రశాంతి నిలయం ఆశ్రమంలో లేదు. మీరు ఈ యాప్‌ను ఉపయోగించలేరు.",
+    hi: "आपका स्थान प्रशांति निलयम आश्रम में नहीं है। आप इस ऐप का उपयोग नहीं कर पाएंगे।",
+  },
+  geofence_no_geo_support: {
+    en: "We couldn't determine your location. This app only works within Prasanthi Nilayam Ashram.",
+    te: "మేము మీ లొకేషన్‌ను గుర్తించలేకపోయాము. ఈ యాప్ ప్రశాంతి నిలయం ఆశ్రమంలో మాత్రమే పనిచేస్తుంది.",
+    hi: "हम आपका स्थान निर्धारित नहीं कर सके। यह ऐप केवल प्रशांति निलयम आश्रम के भीतर काम करता है।",
+  },
+  geofence_no_location: {
+    en: "We couldn't determine your location. Please enable location access and try again.",
+    te: "మేము మీ లొకేషన్‌ను గుర్తించలేకపోయాము. దయచేసి లొకేషన్ యాక్సెస్‌ను ప్రారంభించి, మళ్లీ ప్రయత్నించండి.",
+    hi: "हम आपका स्थान निर्धारित नहीं कर सके। कृपया लोकेशन एक्सेस चालू करें और पुनः प्रयास करें।",
+  },
+  geofence_retry: { en: "Retry", te: "మళ్లీ ప్రయత్నించండి", hi: "पुनः प्रयास करें" },
 };
 function t(key) {
   return (I18N[key] && I18N[key][currentLang]) || I18N[key].en;
@@ -868,7 +886,7 @@ async function checkPreviewAuthAndInit() {
   overlay.style.display = "flex";
   loginForm.style.display = "none";
   textEl.style.display = "";
-  textEl.textContent = "Checking session…";
+  textEl.textContent = t("geofence_checking_session");
 
   const res = await fetch(`${API}/preview/session`);
   const { authenticated } = await res.json();
@@ -918,7 +936,8 @@ function checkGeofenceAndInit() {
   const retryBtn = document.getElementById("geofence-retry");
 
   overlay.style.display = "flex";
-  textEl.textContent = "Checking your location…";
+  textEl.textContent = t("geofence_checking");
+  retryBtn.textContent = t("geofence_retry");
   retryBtn.style.display = "none";
 
   function block(message) {
@@ -927,7 +946,7 @@ function checkGeofenceAndInit() {
   }
 
   if (!navigator.geolocation) {
-    block("We couldn't determine your location. This app only works within Prasanthi Nilayam Ashram.");
+    block(t("geofence_no_geo_support"));
     return;
   }
 
@@ -943,11 +962,11 @@ function checkGeofenceAndInit() {
         overlay.style.display = "none";
         startApp({ lat: pos.coords.latitude, lon: pos.coords.longitude });
       } else {
-        block("Your location is not in Prasanthi Nilayam Ashram. You will not be able to access this app.");
+        block(t("geofence_not_onsite"));
       }
     },
     () => {
-      block("We couldn't determine your location. Please enable location access and try again.");
+      block(t("geofence_no_location"));
     },
     { timeout: 8000, enableHighAccuracy: true }
   );
@@ -955,4 +974,28 @@ function checkGeofenceAndInit() {
 
 document.getElementById("geofence-retry").addEventListener("click", checkGeofenceAndInit);
 
-checkGeofenceAndInit();
+// First-ever visit (nothing saved under pranams_lang yet) asks the visitor
+// to pick a language before anything else, including the geofence check
+// itself, so "Checking your location…" comes back in their language, not
+// a silent English default. /preview is testing/admin traffic, not a real
+// visitor's first touch, so it skips straight to its own auth flow.
+function initApp() {
+  const hasChosenLang = localStorage.getItem("pranams_lang") !== null;
+  if (hasChosenLang || PREVIEW_MODE) {
+    checkGeofenceAndInit();
+    return;
+  }
+
+  const overlay = document.getElementById("lang-select-overlay");
+  overlay.style.display = "flex";
+  document.querySelectorAll(".lang-tile").forEach((tile) => {
+    tile.addEventListener("click", () => {
+      currentLang = tile.dataset.lang;
+      localStorage.setItem("pranams_lang", currentLang);
+      overlay.style.display = "none";
+      checkGeofenceAndInit();
+    });
+  });
+}
+
+initApp();

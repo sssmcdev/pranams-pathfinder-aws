@@ -9,6 +9,17 @@
 </head>
 <body>
 <div id="app">
+  <div class="lang-select-overlay" id="lang-select-overlay" style="display:none">
+    <img class="lang-select-logo" src="assets/sssct-logo.png" alt="Sri Sathya Sai Central Trust logo" onerror="this.remove();">
+    <h1 class="lang-select-title">PRANAMS</h1>
+    <p class="lang-select-sub">Select your language &middot; మీ భాషను ఎంచుకోండి &middot; अपनी भाषा चुनें</p>
+    <div class="lang-select-grid">
+      <button type="button" class="lang-tile lang-tile-pink" data-lang="en">English</button>
+      <button type="button" class="lang-tile lang-tile-blue" data-lang="te">తెలుగు</button>
+      <button type="button" class="lang-tile lang-tile-yellow" data-lang="hi">हिन्दी</button>
+    </div>
+  </div>
+
   <div class="geofence-overlay" id="geofence-overlay">
     <p class="geofence-text" id="geofence-text">Checking your location…</p>
     <button class="cta" id="geofence-retry" style="display:none; width:auto; padding:12px 28px;">Retry</button>

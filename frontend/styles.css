@@ -208,6 +208,28 @@ html, body { margin: 0; height: 100%; background: #ffffff; color: var(--ink); fo
   gap: 18px; padding: 32px; text-align: center;
 }
 .geofence-text { font: 400 16px/1.5 var(--font-body); color: var(--ink); margin: 0; max-width: 320px; }
+
+/* Shown once, ever, before the geofence check even starts — currentLang
+   isn't known yet at this point, so the sub-line is written out in all
+   three languages at once rather than picking one to default to. */
+.lang-select-overlay {
+  position: absolute; inset: 0; z-index: 3100; background: var(--paper-raised);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 14px; padding: 32px; text-align: center;
+}
+.lang-select-logo { width: 56px; height: 56px; border-radius: 14px; object-fit: contain; }
+.lang-select-title { font: 400 34px/1.1 var(--font-display); color: var(--pink); margin: 0; }
+.lang-select-sub { font: 500 13px/1.5 var(--font-body); color: var(--ink-soft); margin: 0; max-width: 300px; }
+.lang-select-grid { display: flex; flex-direction: column; gap: 12px; width: 100%; max-width: 300px; margin-top: 10px; }
+.lang-tile {
+  padding: 20px; border-radius: 18px; border: none; cursor: pointer;
+  font: 700 20px/1 var(--font-body); letter-spacing: 0.01em;
+  transition: transform 0.15s ease;
+}
+.lang-tile:active { transform: scale(0.97); }
+.lang-tile-pink { background: var(--pink-soft); color: var(--pink); }
+.lang-tile-blue { background: var(--blue-soft); color: var(--blue); }
+.lang-tile-yellow { background: var(--yellow-soft); color: var(--yellow); }
 .preview-login { display: flex; flex-direction: column; gap: 12px; width: 100%; max-width: 280px; }
 .preview-login-error { color: var(--pink); }
 
