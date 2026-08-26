@@ -991,11 +991,12 @@ document.getElementById("geofence-retry").addEventListener("click", checkGeofenc
 // First-ever visit (nothing saved under pranams_lang yet) asks the visitor
 // to pick a language before anything else, including the geofence check
 // itself, so "Checking your location…" comes back in their language, not
-// a silent English default. /preview is testing/admin traffic, not a real
-// visitor's first touch, so it skips straight to its own auth flow.
+// a silent English default. /preview goes through this too — it exists to
+// mock the full visitor experience for testing away from the ashram, so
+// it should show everything a real first-time visitor would see.
 function initApp() {
   const hasChosenLang = localStorage.getItem("pranams_lang") !== null;
-  if (hasChosenLang || PREVIEW_MODE) {
+  if (hasChosenLang) {
     checkGeofenceAndInit();
     return;
   }
