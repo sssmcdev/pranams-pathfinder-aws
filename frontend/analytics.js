@@ -5,6 +5,8 @@ let hitsChart = null;
 let categoryChart = null;
 let usageMap = null;
 let heatLayer = null;
+let devicesMap = null;
+let deviceMarkers = [];
 
 function formatCompact(n) {
   if (n >= 1_000_000) return (n / 1_000_000).toFixed(1).replace(/\.0$/, "") + "M";
@@ -256,6 +258,58 @@ function renderMap(mapPoints) {
   requestAnimationFrame(() => usageMap.invalidateSize());
 }
 
+function timeAgo(isoString) {
+  const seconds = Math.max(0, Math.round((Date.now() - new Date(isoString).getTime()) / 1000));
+  if (seconds < 60) return `${seconds}s ago`;
+  return `${Math.round(seconds / 60)} min ago`;
+}
+
+function renderDevicesMap(devices) {
+  const empty = document.getElementById("devices-empty");
+  const mapEl = document.getElementById("devices-map");
+
+  if (!devicesMap) {
+    devicesMap = L.map("devices-map", { zoomControl: true }).setView([14.1662805, 77.8078665], 16);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19,
+      attribution: "&copy; OpenStreetMap contributors",
+    }).addTo(devicesMap);
+  }
+
+  deviceMarkers.forEach((m) => devicesMap.removeLayer(m));
+  deviceMarkers = [];
+
+  if (!devices.length) {
+    mapEl.style.display = "none";
+    empty.style.display = "";
+    return;
+  }
+  mapEl.style.display = "";
+  empty.style.display = "none";
+
+  devices.forEach((d) => {
+    const marker = L.circleMarker([d.lat, d.lon], {
+      radius: 9,
+      color: "#3987e5",
+      fillColor: "#3987e5",
+      fillOpacity: 0.85,
+      weight: 2,
+    }).addTo(devicesMap);
+    marker.bindPopup(
+      `<b>Device ${d.device_id.slice(0, 8)}…</b><br>Last seen: ${timeAgo(d.last_seen)}<br>Searches (last hour): ${d.search_count}`
+    );
+    deviceMarkers.push(marker);
+  });
+  requestAnimationFrame(() => devicesMap.invalidateSize());
+}
+
+async function loadDevices() {
+  const res = await fetch(`${API}/analytics/devices`);
+  if (res.status === 401) return;
+  const data = await res.json();
+  renderDevicesMap(data.devices);
+}
+
 async function loadDashboard() {
   const cards = document.querySelectorAll(".chart-card");
   cards.forEach((c) => c.classList.add("loading"));
@@ -294,7 +348,9 @@ function setupFilters() {
   wireSegmented("range-filter", (v) => (state.range = v));
   wireSegmented("granularity-filter", (v) => (state.granularity = v));
 
-  document.querySelectorAll(".table-toggle").forEach((btn) => {
+  document.getElementById("devices-refresh").addEventListener("click", loadDevices);
+
+  document.querySelectorAll(".table-toggle[data-target]").forEach((btn) => {
     btn.addEventListener("click", () => {
       const target = btn.dataset.target;
       const wrap = document.getElementById(`${target}-chart`).parentElement;
@@ -318,6 +374,7 @@ async function showDashboard() {
   document.getElementById("dashboard").style.display = "flex";
   setupFilters();
   await loadDashboard();
+  await loadDevices();
 }
 
 document.getElementById("login-form").addEventListener("submit", async (e) => {

@@ -119,7 +119,35 @@ class AnalyticsEvent(Base):
     search_query: Mapped[str | None] = mapped_column(String, nullable=True)
     lat: Mapped[float | None] = mapped_column(Float, nullable=True)
     lon: Mapped[float | None] = mapped_column(Float, nullable=True)
+    # A random ID the frontend generates once and keeps in localStorage —
+    # no login, no name, just "is this the same browser as last time".
+    # Lets the dashboard tell one visitor's burst of activity apart from
+    # ten different visitors each searching once.
+    device_id: Mapped[str | None] = mapped_column(String, nullable=True, index=True)
+    # Truncated (last octet zeroed) at write time — see
+    # routers/analytics.py:_client_ip — coarse signal, not a precise
+    # identifier. Retained for 1 year; see app/purge_old_events.py.
+    ip_address: Mapped[str | None] = mapped_column(String, nullable=True)
     created_at: Mapped[str] = mapped_column(String, nullable=False, index=True)
 
     def __str__(self) -> str:
         return f"{self.event_type} @ {self.created_at}"
+
+
+class DeviceFlag(Base):
+    """A device whose search rate crossed the anomaly threshold — logged
+    for admin visibility, not used to block or restrict anything.
+    """
+
+    __tablename__ = "device_flags"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    device_id: Mapped[str] = mapped_column(String, nullable=False, index=True)
+    ip_address: Mapped[str | None] = mapped_column(String, nullable=True)
+    event_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    window_minutes: Mapped[int] = mapped_column(Integer, nullable=False)
+    sample_queries: Mapped[str | None] = mapped_column(String, nullable=True)
+    flagged_at: Mapped[str] = mapped_column(String, nullable=False, index=True)
+
+    def __str__(self) -> str:
+        return f"{self.device_id} — {self.event_count} searches @ {self.flagged_at}"

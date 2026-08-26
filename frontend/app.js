@@ -12,6 +12,20 @@ const GEOFENCE_RADIUS_M = 3000;
 
 let currentLang = localStorage.getItem("pranams_lang") || "en";
 
+// A random ID generated once per browser, not tied to any name/login —
+// lets the admin's analytics tell "one visitor searching a lot" apart
+// from "ten different visitors each searching once". Persisted the same
+// way as the language choice.
+function getOrCreateDeviceId() {
+  let id = localStorage.getItem("pranams_device_id");
+  if (!id) {
+    id = window.crypto?.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    localStorage.setItem("pranams_device_id", id);
+  }
+  return id;
+}
+const DEVICE_ID = getOrCreateDeviceId();
+
 const I18N = {
   search_placeholder: { en: "Search Mandir, Water, Canteen…", te: "నీరు, మరుగుదొడ్లు, మందిరాన్ని వెతకండి...", hi: "पानी, शौचालय, मंदिर खोजें..." },
   search_prefix: { en: "Search", te: "వెతకండి", hi: "खोजें" },
@@ -211,7 +225,7 @@ function logEvent(payload) {
   fetch(`${API}/analytics/event`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
+    body: JSON.stringify({ ...payload, device_id: DEVICE_ID }),
   }).catch(() => {}); // fire-and-forget — a failed log must never affect the UI
 }
 

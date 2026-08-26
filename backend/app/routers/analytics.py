@@ -6,12 +6,18 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.db_models import AnalyticsEvent, POIRecord
+from app.db_models import AnalyticsEvent, DeviceFlag, POIRecord
 from app.models import CATEGORY_LABELS
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
 
 EVENT_TYPES = {"open", "poi_view", "directions", "category", "search"}
+
+# A device logging this many "search" events within this many minutes gets
+# flagged for admin visibility — not blocked, just surfaced. Conservative
+# starting point; revisit once real search-per-visitor numbers are in.
+SEARCH_ANOMALY_THRESHOLD = 10
+SEARCH_ANOMALY_WINDOW_MINUTES = 15
 
 # All visitors and admins are in India — every date shown in the dashboard
 # ("Today", the Hits-over-time bucket labels, etc.) should be an IST
@@ -33,6 +39,66 @@ def require_admin_session(request: Request) -> None:
         raise HTTPException(status_code=401, detail="Admin login required")
 
 
+def _client_ip(request: Request) -> str | None:
+    """The proxy-forwarded address (nginx/PythonAnywhere both set this) —
+    request.client.host would just be the proxy's own address otherwise.
+    Truncated before it's ever stored: last IPv4 octet (or last IPv6
+    group) zeroed, so this is a coarse signal, not a precise identifier.
+    """
+    forwarded = request.headers.get("x-forwarded-for")
+    ip = forwarded.split(",")[0].strip() if forwarded else (request.client.host if request.client else None)
+    if not ip:
+        return None
+    if ":" in ip:
+        parts = ip.split(":")
+        return ":".join(parts[:-1] + ["0"]) if len(parts) > 1 else ip
+    parts = ip.split(".")
+    if len(parts) == 4:
+        parts[-1] = "0"
+        return ".".join(parts)
+    return ip
+
+
+def _check_search_anomaly(db: Session, device_id: str, ip_address: str | None, now: datetime) -> None:
+    window_start = now - timedelta(minutes=SEARCH_ANOMALY_WINDOW_MINUTES)
+    recent = (
+        db.query(AnalyticsEvent)
+        .filter(
+            AnalyticsEvent.device_id == device_id,
+            AnalyticsEvent.event_type == "search",
+            AnalyticsEvent.created_at >= window_start.isoformat(),
+        )
+        .all()
+    )
+    if len(recent) < SEARCH_ANOMALY_THRESHOLD:
+        return
+
+    # Don't spawn a fresh flag on every single search once a device is
+    # already over the threshold — only start a new one once its last
+    # flag has aged out of the current window.
+    already_flagged = (
+        db.query(DeviceFlag)
+        .filter(DeviceFlag.device_id == device_id, DeviceFlag.flagged_at >= window_start.isoformat())
+        .first()
+    )
+    if already_flagged:
+        return
+
+    sample_queries = ", ".join(dict.fromkeys(e.search_query for e in recent if e.search_query))[:500]
+    db.add(
+        DeviceFlag(
+            id=uuid.uuid4().hex,
+            device_id=device_id,
+            ip_address=ip_address,
+            event_count=len(recent),
+            window_minutes=SEARCH_ANOMALY_WINDOW_MINUTES,
+            sample_queries=sample_queries or None,
+            flagged_at=now.isoformat(),
+        )
+    )
+    db.commit()
+
+
 @router.post("/event")
 async def log_event(request: Request, db: Session = Depends(get_db)):
     data = await request.json()
@@ -41,6 +107,10 @@ async def log_event(request: Request, db: Session = Depends(get_db)):
         raise HTTPException(status_code=422, detail="Invalid event_type")
 
     lat, lon = data.get("lat"), data.get("lon")
+    device_id = (data.get("device_id") or "").strip()[:64] or None
+    ip_address = _client_ip(request)
+    now = datetime.now(timezone.utc)
+
     db.add(
         AnalyticsEvent(
             id=uuid.uuid4().hex,
@@ -50,10 +120,16 @@ async def log_event(request: Request, db: Session = Depends(get_db)):
             search_query=(data.get("search_query") or "").strip()[:200] or None,
             lat=float(lat) if lat is not None else None,
             lon=float(lon) if lon is not None else None,
-            created_at=datetime.now(timezone.utc).isoformat(),
+            device_id=device_id,
+            ip_address=ip_address,
+            created_at=now.isoformat(),
         )
     )
     db.commit()
+
+    if event_type == "search" and device_id:
+        _check_search_anomaly(db, device_id, ip_address, now)
+
     return {"ok": True}
 
 
@@ -171,3 +247,53 @@ async def dashboard(
         "categories": categories,
         "map_points": map_points,
     }
+
+
+# Deliberately NOT part of the range/granularity filters above — this is
+# always "who's roughly active right now", not a historical query. Location
+# only exists for devices with a recent "open" event (lat/lon is captured
+# there, for the heatmap) — a device that only searched without a fresh
+# GPS fix has nothing to plot, and this reports that honestly rather than
+# guessing.
+@router.get("/devices")
+async def active_devices(request: Request, db: Session = Depends(get_db)):
+    require_admin_session(request)
+    window_start = datetime.now(timezone.utc) - timedelta(hours=1)
+
+    located = (
+        db.query(AnalyticsEvent)
+        .filter(
+            AnalyticsEvent.device_id.is_not(None),
+            AnalyticsEvent.lat.is_not(None),
+            AnalyticsEvent.lon.is_not(None),
+            AnalyticsEvent.created_at >= window_start.isoformat(),
+        )
+        .order_by(AnalyticsEvent.created_at.desc())
+        .all()
+    )
+    latest_by_device = {}
+    for e in located:
+        latest_by_device.setdefault(e.device_id, e)
+
+    search_counts = Counter()
+    if latest_by_device:
+        search_counts = Counter(
+            e.device_id
+            for e in db.query(AnalyticsEvent).filter(
+                AnalyticsEvent.device_id.in_(list(latest_by_device.keys())),
+                AnalyticsEvent.event_type == "search",
+                AnalyticsEvent.created_at >= window_start.isoformat(),
+            )
+        )
+
+    devices = [
+        {
+            "device_id": device_id,
+            "lat": e.lat,
+            "lon": e.lon,
+            "last_seen": e.created_at,
+            "search_count": search_counts.get(device_id, 0),
+        }
+        for device_id, e in latest_by_device.items()
+    ]
+    return {"devices": devices, "window_minutes": 60}

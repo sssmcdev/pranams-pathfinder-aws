@@ -8,7 +8,7 @@ from sqladmin import Admin
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.requests import Request
 
-from app.admin import AdminAuth, FeedbackAdmin, MediaAssetAdmin, POIAdmin, SESSION_SECRET, SubPlaceAdmin
+from app.admin import AdminAuth, DeviceFlagAdmin, FeedbackAdmin, MediaAssetAdmin, POIAdmin, SESSION_SECRET, SubPlaceAdmin
 from app.db import engine
 from app.routers import admin_tools, analytics, feedback, pois, preview
 from app.seed import init_db_and_seed
@@ -74,6 +74,7 @@ admin.add_view(POIAdmin)
 admin.add_view(SubPlaceAdmin)
 admin.add_view(MediaAssetAdmin)
 admin.add_view(FeedbackAdmin)
+admin.add_view(DeviceFlagAdmin)
 
 
 # sqladmin's mount only matches paths with a trailing slash

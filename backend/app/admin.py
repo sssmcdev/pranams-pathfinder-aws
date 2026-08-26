@@ -5,7 +5,7 @@ from sqladmin.authentication import AuthenticationBackend
 from starlette.requests import Request
 from wtforms import SelectField
 
-from app.db_models import Feedback, MediaAsset, POIRecord, SubPlace
+from app.db_models import DeviceFlag, Feedback, MediaAsset, POIRecord, SubPlace
 from app.models import CATEGORY_FACILITY_TYPES, CATEGORY_LABELS, Category, FACILITY_TYPE_LABELS, Gender
 
 # The union of every category's facility types, keyed for a per-category
@@ -211,3 +211,30 @@ class FeedbackAdmin(ModelView, model=Feedback):
     }
     column_sortable_list = [Feedback.created_at, Feedback.rating_overall]
     column_default_sort = [(Feedback.created_at, True)]
+
+
+class DeviceFlagAdmin(ModelView, model=DeviceFlag):
+    name = "Flagged Device"
+    name_plural = "Flagged Activity"
+    icon = "fa-solid fa-triangle-exclamation"
+    can_create = False  # only ever written by the anomaly check in routers/analytics.py
+    can_edit = False
+
+    column_list = [
+        DeviceFlag.flagged_at,
+        DeviceFlag.device_id,
+        DeviceFlag.ip_address,
+        DeviceFlag.event_count,
+        DeviceFlag.window_minutes,
+        DeviceFlag.sample_queries,
+    ]
+    column_labels = {
+        DeviceFlag.flagged_at: "Flagged At",
+        DeviceFlag.device_id: "Device",
+        DeviceFlag.ip_address: "IP Address",
+        DeviceFlag.event_count: "Searches",
+        DeviceFlag.window_minutes: "Window (min)",
+        DeviceFlag.sample_queries: "Sample Searches",
+    }
+    column_sortable_list = [DeviceFlag.flagged_at, DeviceFlag.event_count]
+    column_default_sort = [(DeviceFlag.flagged_at, True)]
