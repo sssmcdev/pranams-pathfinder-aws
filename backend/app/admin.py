@@ -15,10 +15,20 @@ from app.models import CATEGORY_FACILITY_TYPES, CATEGORY_LABELS, Category, FACIL
 # legitimately submitted value.
 ALL_FACILITY_TYPES = sorted({t for types in CATEGORY_FACILITY_TYPES.values() for t in types})
 
-# CHANGE THESE before deploying anywhere reachable from the internet.
+# Defaults below are fine for local dev and PA (both effectively private-
+# by-obscurity deployments so far). Set WAYFINDER_ENV=production on a
+# publicly reachable host (e.g. AWS) to turn these into a hard startup
+# failure instead of a silently-insecure default — see the check below.
+APP_ENV = os.environ.get("WAYFINDER_ENV", "development")
 ADMIN_USER = os.environ.get("WAYFINDER_ADMIN_USER", "admin")
 ADMIN_PASSWORD = os.environ.get("WAYFINDER_ADMIN_PASSWORD", "prasanthi2026")
 SESSION_SECRET = os.environ.get("WAYFINDER_SESSION_SECRET", "dev-only-change-me")
+
+if APP_ENV == "production" and (ADMIN_PASSWORD == "prasanthi2026" or SESSION_SECRET == "dev-only-change-me"):
+    raise RuntimeError(
+        "WAYFINDER_ADMIN_PASSWORD and WAYFINDER_SESSION_SECRET must be set to real values "
+        "when WAYFINDER_ENV=production — refusing to start with development defaults."
+    )
 
 
 class AdminAuth(AuthenticationBackend):
