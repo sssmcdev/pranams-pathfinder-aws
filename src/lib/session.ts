@@ -23,22 +23,16 @@ const DEV_SECRET = "dev-only-change-me";
 
 // Deliberately NOT keyed off NODE_ENV: that is "production" during any
 // build, including a local `next build`, which would make this guard fire
-// on a developer's laptop. Mirrors WAYFINDER_ENV from admin.py, and also
-// treats a real Vercel production deployment as production so the flag
-// cannot simply be forgotten.
-const APP_ENV =
-  process.env.WAYFINDER_ENV ??
-  (process.env.VERCEL_ENV === "production" ? "production" : "development");
-const IS_PRODUCTION = APP_ENV === "production";
+// on a developer's laptop. Mirrors WAYFINDER_ENV from admin.py.
+const APP_ENV = process.env.WAYFINDER_ENV ?? "development";
 
-// Cookies must still be Secure on any deployed environment, including
-// Vercel preview deployments, which are HTTPS but not "production".
-const IS_DEPLOYED = IS_PRODUCTION || Boolean(process.env.VERCEL);
+// Any Vercel deployment counts as deployed, preview included. A preview
+// URL is public, is served over HTTPS, and points at the same live
+// database as production — so it must not be allowed to run on the
+// development default password, which is in the git history. Only a
+// genuinely local process is exempt.
+const IS_DEPLOYED = APP_ENV === "production" || Boolean(process.env.VERCEL);
 
-// `||` rather than `??` on purpose: an env var present but EMPTY must
-// fall back to the development default, not become the credential. With
-// `??`, ADMIN_PASSWORD="" would authenticate anyone submitting a blank
-// password, and the production guard below would not catch it either.
 export const ADMIN_USER = process.env.ADMIN_USER || "admin";
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || DEV_PASSWORD;
 const SESSION_SECRET = process.env.SESSION_SECRET || DEV_SECRET;
@@ -48,10 +42,11 @@ const SESSION_SECRET = process.env.SESSION_SECRET || DEV_SECRET;
  * a publicly reachable deployment. On Vercel this surfaces as a failed
  * build/boot rather than a silently insecure live site.
  */
-if (IS_PRODUCTION && (ADMIN_PASSWORD === DEV_PASSWORD || SESSION_SECRET === DEV_SECRET)) {
+if (IS_DEPLOYED && (ADMIN_PASSWORD === DEV_PASSWORD || SESSION_SECRET === DEV_SECRET)) {
   throw new Error(
-    "ADMIN_PASSWORD and SESSION_SECRET must be set to real values in production — " +
-      "refusing to start with development defaults.",
+    "ADMIN_PASSWORD and SESSION_SECRET must be set to real values on any deployed " +
+      "environment (production AND preview) — refusing to start with development " +
+      "defaults. Set them in the Vercel project's Environment Variables.",
   );
 }
 
