@@ -1,7 +1,9 @@
 "use client";
 
 import { LanguagePicker } from "@/components/LanguagePicker";
+import { LoadingOverlay } from "@/components/LoadingOverlay";
 import { useLang } from "@/components/LangProvider";
+import { UI_STRINGS } from "@/lib/i18n";
 import { PreviewGate } from "@/components/PreviewGate";
 
 /**
@@ -11,7 +13,7 @@ import { PreviewGate } from "@/components/PreviewGate";
  */
 export default function PreviewPage() {
   const { ready, storedLang, setLang } = useLang();
-  if (!ready) return null;
+  if (!ready) return <LoadingOverlay message={UI_STRINGS.geofence_checking_session.en} />;
   if (!storedLang) return <LanguagePicker onPick={setLang} />;
   return <PreviewGate />;
 }

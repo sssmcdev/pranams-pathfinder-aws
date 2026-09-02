@@ -1,6 +1,7 @@
 "use client";
 
 import { GeofenceGate } from "@/components/GeofenceGate";
+import { LoadingOverlay } from "@/components/LoadingOverlay";
 import { LanguagePicker } from "@/components/LanguagePicker";
 import { useLang } from "@/components/LangProvider";
 import { VisitorApp } from "@/components/VisitorApp";
@@ -20,9 +21,12 @@ import { VisitorApp } from "@/components/VisitorApp";
 export function AppShell({ analyticsEnabled = true }: { analyticsEnabled?: boolean }) {
   const { ready, storedLang, setLang } = useLang();
 
-  // localStorage is only readable after mount. Render nothing for that one
-  // frame rather than flashing the language picker at a returning visitor.
-  if (!ready) return null;
+  // localStorage is only readable after mount, so this frame cannot know
+  // which language (or whether the visitor has chosen one). Show the
+  // neutral "checking" overlay rather than the language picker, which
+  // would flash at every returning visitor — and rather than null, which
+  // renders an empty page until the client bundle arrives.
+  if (!ready) return <LoadingOverlay />;
 
   if (!storedLang) return <LanguagePicker onPick={setLang} />;
 
