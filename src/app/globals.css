@@ -41,14 +41,18 @@ html {
      my phone, sideways". */
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
+  /* Nothing in this app is meant to scroll sideways. Anything that
+     overflows its width is a bug; this keeps such a bug from turning into
+     a page-wide horizontal scroll the visitor can drift into and get lost.
+     On html ONLY: adding it to body as well stops body's overflow from
+     propagating to the viewport, which makes body its own scroll container
+     — and scrolling an inner element does not collapse the iOS URL bar, so
+     the long admin and analytics pages would permanently lose that strip. */
+  overflow-x: hidden;
 }
 html, body {
   margin: 0; height: 100%;
   background: #ffffff; color: var(--ink); font-family: var(--font-body);
-  /* Nothing in this app is meant to scroll sideways. Anything that
-     overflows its width is a bug; this keeps such a bug from turning into
-     a page-wide horizontal scroll the visitor can drift into and get lost. */
-  overflow-x: hidden;
 }
 /* The visitor screens are a fixed frame exactly the size of the viewport,
    so there is nothing to scroll: suppress the rubber-band and the
