@@ -5,7 +5,10 @@
 .admin {
   display: grid;
   grid-template-columns: 240px 1fr;
-  min-height: 100vh;
+  /* dvh, not vh: on mobile Safari 100vh is the height with the browser
+     chrome hidden, so a vh-sized panel is always taller than what you can
+     actually see and leaves a dead scroll at the bottom. */
+  min-height: 100dvh;
   background: var(--paper);
   color: var(--ink);
   font: 400 14px/1.5 var(--font-body);
@@ -32,7 +35,8 @@
   text-transform: uppercase; color: var(--ink-soft); }
 
 .admin-main { padding: 26px 30px 60px; min-width: 0; }
-.admin-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
+.admin-head { display: flex; align-items: center; justify-content: space-between;
+  gap: 16px; margin-bottom: 18px; flex-wrap: wrap; }
 .admin-head h1 { font: 400 24px/1.2 var(--font-display); margin: 0; }
 .admin-head .muted { font: 400 12.5px/1.4 var(--font-body); color: var(--ink-soft); margin: 4px 0 0; }
 
@@ -51,7 +55,13 @@
 .card { background: var(--paper-raised); border: 1px solid var(--line); border-radius: 16px;
   padding: 18px; margin-bottom: 18px; }
 
-.table-scroll { overflow-x: auto; }
+/* Wide tables scroll inside their card. `contain` keeps a swipe that runs
+   off the end of the table from chaining outward into the browser's
+   back-navigation gesture. */
+.table-scroll {
+  overflow-x: auto; -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+}
 table.admin-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 table.admin-table th {
   text-align: left; font: 700 10.5px/1 var(--font-body); letter-spacing: .07em;
@@ -78,20 +88,28 @@ table.admin-table td.wrap { max-width: 320px; overflow-wrap: anywhere; }
 .field input[type="text"], .field input[type="number"], .field select, .field textarea {
   font: 400 14px/1.4 var(--font-body); color: var(--ink); background: var(--paper);
   border: 1px solid var(--line); border-radius: 10px; padding: 9px 11px; width: 100%;
+  min-width: 0; max-width: 100%;
 }
+.field input[type="file"] { max-width: 100%; }
 .field textarea { resize: vertical; min-height: 68px; }
 .field .hint { font: 400 11.5px/1.4 var(--font-body); color: var(--ink-soft); }
 .field-check { display: flex; align-items: center; gap: 8px; }
 .field-check label { text-transform: none; letter-spacing: 0; font: 600 13px/1 var(--font-body); color: var(--ink); }
 
-.form-actions { display: flex; gap: 10px; align-items: center; margin-top: 20px; padding-top: 18px;
-  border-top: 1px solid var(--line); }
+.form-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 20px;
+  padding-top: 18px; border-top: 1px solid var(--line); }
 .form-error { background: #fdf1f2; border: 1px solid #e3b9be; color: #a3343f;
   border-radius: 10px; padding: 10px 13px; font-size: 13px; margin-bottom: 14px; }
 .form-ok { background: var(--blue-soft); border: 1px solid var(--blue); color: var(--blue);
   border-radius: 10px; padding: 10px 13px; font-size: 13px; margin-bottom: 14px; }
 
-.gallery { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; max-height: 220px; overflow-y: auto; }
+/* A scroll region nested inside the page scroll: contain it, or reaching
+   the end of the gallery starts scrolling the form behind it. */
+.gallery {
+  display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px;
+  max-height: 220px; overflow-y: auto;
+  overscroll-behavior-y: contain; -webkit-overflow-scrolling: touch;
+}
 .gallery button { padding: 0; border: 2px solid transparent; border-radius: 9px; background: none; cursor: pointer; line-height: 0; }
 .gallery button.selected { border-color: var(--pink); }
 .gallery img { height: 56px; width: 76px; object-fit: cover; border-radius: 7px; display: block; }
@@ -101,17 +119,46 @@ table.admin-table td.wrap { max-width: 320px; overflow-wrap: anywhere; }
 .admin-search input { font: 400 14px/1.4 var(--font-body); border: 1px solid var(--line);
   border-radius: 10px; padding: 9px 12px; width: 320px; max-width: 100%; background: var(--paper-raised); }
 
-.admin-login { min-height: 100vh; display: flex; align-items: center; justify-content: center;
-  background: var(--paper); }
+.admin-login { min-height: 100dvh; display: flex; align-items: center; justify-content: center;
+  background: var(--paper); padding: 20px; }
 .admin-login form { background: var(--paper-raised); border: 1px solid var(--line); border-radius: 18px;
-  padding: 28px; width: 320px; display: flex; flex-direction: column; gap: 12px; }
+  padding: 28px; width: 320px; max-width: 100%; display: flex; flex-direction: column; gap: 12px; }
 .admin-login h1 { font: 400 22px/1.2 var(--font-display); color: var(--pink); margin: 0; }
 .admin-login input { font: 400 15px/1.4 var(--font-body); border: 1px solid var(--line);
   border-radius: 10px; padding: 10px 12px; }
 
 @media (max-width: 860px) {
   .admin { grid-template-columns: 1fr; }
-  .admin-sidebar { flex-direction: row; flex-wrap: wrap; border-right: none; border-bottom: 1px solid var(--line); }
   .admin-main { padding: 18px; }
   .form-grid { grid-template-columns: 1fr; }
+
+  .admin-sidebar {
+    flex-direction: row; flex-wrap: wrap; align-items: center; gap: 8px;
+    padding: 14px; border-right: none; border-bottom: 1px solid var(--line);
+  }
+  /* The links are wrapped in a <div> per group. Without this they stay two
+     stacked columns sitting side by side in the row, which is why the
+     mobile nav read as a jumble. `display: contents` lets the links
+     themselves be the flex items and wrap as one set of chips. */
+  .admin-sidebar > div { display: contents; }
+  /* Five links do not need section captions on a phone. Scoped to beat the
+     `display: contents` above, which is the more specific selector for the
+     "Elsewhere" caption — that one is a direct child of the sidebar. */
+  .admin-sidebar .admin-nav-sep { display: none; }
+  .admin-brand { flex: 1 0 100%; margin: 0; }
+  .admin-nav-link { border-color: var(--line); }
+}
+
+/* Touch input, at any width. 16px is not a style choice: below it, iOS
+   zooms the page in on focus and leaves the visitor scrolled sideways in a
+   layout they then have to pinch back out of. The larger hit areas are the
+   same fix as the visitor app's. */
+@media (pointer: coarse) {
+  .field input[type="text"], .field input[type="number"], .field select, .field textarea,
+  .admin-search input, .admin-login input {
+    font-size: 16px;
+  }
+  .btn { padding: 12px 16px; min-height: 44px; }
+  .admin-nav-link { padding: 11px 13px; }
+  .field-check input[type="checkbox"] { width: 18px; height: 18px; }
 }
