@@ -147,7 +147,7 @@ export function MapsLinkField({
       full
       hint="Paste a Maps share link or raw coordinates, then Get coordinates to fill in latitude and longitude."
     >
-      <div style={{ display: "flex", gap: 8 }}>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
         <input
           type="text"
           value={mapsUrl}
@@ -236,7 +236,7 @@ export function PhotoPicker({
           </button>
         ))}
       </div>
-      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+      <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
         <input
           type="file"
           accept="image/png,image/jpeg,image/webp,image/gif"

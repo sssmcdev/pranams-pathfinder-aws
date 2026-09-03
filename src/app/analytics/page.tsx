@@ -69,9 +69,12 @@ function RankList({
     <div className="rank-list">
       {items.map((item, i) => (
         <div className="rank-row" key={`${item.name}-${i}`}>
-          <span className="rank-name">
-            {item.name}
-            {item.sub && <span className="rank-sub"> {item.sub}</span>}
+          {/* Name and sub-line stack in their own column so the ellipsis
+              lands on the name alone — nested inside it, the sub-line was
+              being truncated along with it on a narrow screen. */}
+          <span className="rank-meta">
+            <span className="rank-name">{item.name}</span>
+            {item.sub && <span className="rank-sub">{item.sub}</span>}
           </span>
           <span className="rank-bar">
             <span style={{ width: max > 0 ? `${Math.round((item.value / max) * 100)}%` : "0%" }} />

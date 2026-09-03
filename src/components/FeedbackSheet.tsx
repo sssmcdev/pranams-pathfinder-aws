@@ -93,7 +93,7 @@ export function FeedbackSheet({ onClose }: { onClose: () => void }) {
         />
 
         {status && (
-          <p className={`feedback-status${status.ok ? " ok" : ""}`}>{status.text}</p>
+          <p className={`feedback-status ${status.ok ? "success" : "error"}`}>{status.text}</p>
         )}
 
         <button type="button" className="cta" disabled={sending} onClick={submit}>

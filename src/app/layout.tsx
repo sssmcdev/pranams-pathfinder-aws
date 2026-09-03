@@ -18,6 +18,15 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  // The frame is positioned with env(safe-area-inset-*), which only
+  // reports non-zero once the page is allowed to extend under the notch
+  // and the home indicator. Without this it stays letterboxed and every
+  // inset reads 0.
+  viewportFit: "cover",
+  themeColor: "#ffffff",
+  // Deliberately no maximumScale / userScalable: pinch-zoom stays
+  // available. Inputs are sized >=16px instead, which is what actually
+  // stops iOS from auto-zooming on focus.
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

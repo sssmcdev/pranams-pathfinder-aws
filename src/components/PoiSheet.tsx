@@ -108,7 +108,7 @@ export function PoiSheet({
           // generic directions button — each entrance routes on its own.
           <div className="entrance-picker">
             <span className="entrance-title">{t("choose_entrance")}</span>
-            <div>
+            <div className="entrance-list">
               {poi.sub_places.map((sub: ApiSubPlace) => {
                 const subDist = haversineM(userPos, sub);
                 return (
