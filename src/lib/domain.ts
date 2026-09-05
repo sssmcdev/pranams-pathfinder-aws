@@ -25,8 +25,13 @@ export type Localized = Record<Lang, string>;
 // ---------------------------------------------------------------------------
 
 /**
- * `primary: true` -> one of the 6 tiles shown by default (2 rows of 3).
- * The rest appear only once "More categories" is expanded.
+ * `primary: true` -> one of the 5 tiles shown by default. They fill the
+ * first five cells of a 2x3 grid; the sixth is the "Others" tile, which
+ * reveals every `primary: false` category in place.
+ *
+ * Five rather than six because the sixth slot now has to hold the way in
+ * to the rest — the old text link under the grid was too easy to skip
+ * past, so the affordance had to become a tile like any other.
  *
  * `color` keys into the --pink / --blue / --yellow custom properties in
  * frontend/styles.css.
@@ -73,9 +78,12 @@ export const CATEGORIES = [
     },
   },
   {
+    // Behind "Others" on purpose: five tiles plus the "Others" tile fill
+    // the grid exactly, and this is the one primary category a visitor is
+    // most likely to already know how to find.
     key: "canteens_shopping",
     color: "yellow",
-    primary: true,
+    primary: false,
     labels: {
       en: "Food & Shopping",
       te: "క్యాంటీన్లు, ఫలహారాలు & షాపింగ్",
