@@ -3,7 +3,7 @@
 import { CATEGORIES, type CategoryKey } from "@/lib/domain";
 import { walkMinutes } from "@/lib/geo";
 import type { PoiListRow } from "@/lib/types";
-import { CATEGORY_ICONS } from "@/components/icons";
+import { facilityIcon } from "@/components/icons";
 
 const CAT_COLOR = Object.fromEntries(CATEGORIES.map((c) => [c.key, c.color])) as Record<
   CategoryKey,
@@ -31,7 +31,7 @@ export function PoiList({
             onClick={() => onOpen(row)}
           >
             <span className="ic" style={{ background: `var(--${color}-soft)`, color: `var(--${color})` }}>
-              {CATEGORY_ICONS[row.category]}
+              {facilityIcon(row.category, row.facility_type)}
             </span>
             <span className="meta">
               <span className="name">{row.display_name}</span>
