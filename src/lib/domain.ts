@@ -62,7 +62,14 @@ export const CATEGORIES = [
     color: "yellow",
     primary: true,
     labels: {
-      en: "Stay & Accommodation",
+      // "Stay & Accommodation" until it turned out that "Accommodation" is
+      // wider than a third of a small phone's screen at the tile's type
+      // size, so it always broke mid-word there. Shortened rather than
+      // hyphenated or shrunk: it is the only label in any of the three
+      // languages that did not fit, and one word is a cheaper fix than
+      // type that changes size with the viewport.
+      // CATEGORY_ADMIN_LABELS keeps the long form for the admin screens.
+      en: "Stay & Rooms",
       te: "వసతి & అతిథి గృహాలు",
       hi: "आवास एवं अतिथि गृह",
     },
@@ -96,7 +103,12 @@ export const CATEGORIES = [
     primary: true,
     labels: {
       en: "Gates",
-      te: "ప్రవేశ/నిష్క్రమణ గేట్లు",
+      // \u200B is a zero-width space, marking the slash as the place to
+      // break this compound — without it the whole thing is one long
+      // unbreakable run that chops mid-word on a narrow phone. A soft
+      // hyphen would be wrong: Telugu does not hyphenate, so the break
+      // has to be invisible rather than marked.
+      te: "ప్రవేశ/\u200Bనిష్క్రమణ గేట్లు",
       hi: "प्रवेश/निकास द्वार",
     },
   },
