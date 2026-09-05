@@ -39,7 +39,7 @@ export function BrandHeader({ onOpenFeedback }: { onOpenFeedback: () => void }) 
 
       <div className="brand-text">
         <span className="sub">Sri Sathya Sai Central Trust</span>
-        <h1>PRANAMS</h1>
+        <h1>PRANAMS Pathfinder</h1>
         <span className="full-form">Prasanthi Nilayam Ashram Management System</span>
       </div>
 

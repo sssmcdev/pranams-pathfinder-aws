@@ -11,7 +11,7 @@ import "leaflet/dist/leaflet.css";
 import { LangProvider } from "@/components/LangProvider";
 
 export const metadata: Metadata = {
-  title: "PRANAMS",
+  title: "PRANAMS Pathfinder",
   description: "Prasanthi Nilayam Ashram Management System",
 };
 
