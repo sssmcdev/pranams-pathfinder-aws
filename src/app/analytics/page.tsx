@@ -158,7 +158,7 @@ export default function AnalyticsPage() {
               else setLoginError("Invalid credentials.");
             }}
           >
-            <h1>PRANAMS Analytics</h1>
+            <h1>PRANAMS Pathfinder Analytics</h1>
             <p className="muted">Admin sign-in required.</p>
             <input
               type="text"
@@ -191,7 +191,7 @@ export default function AnalyticsPage() {
       <header className="dash-header">
         <div>
           <h1>Analytics</h1>
-          <p className="muted">PRANAMS — Prasanthi Nilayam Wayfinder</p>
+          <p className="muted">PRANAMS Pathfinder — Prasanthi Nilayam Wayfinder</p>
         </div>
         <a className="back-link" href="/">
           &larr; Back to app

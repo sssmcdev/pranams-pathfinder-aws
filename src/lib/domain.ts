@@ -25,8 +25,13 @@ export type Localized = Record<Lang, string>;
 // ---------------------------------------------------------------------------
 
 /**
- * `primary: true` -> one of the 6 tiles shown by default (2 rows of 3).
- * The rest appear only once "More categories" is expanded.
+ * `primary: true` -> one of the 5 tiles shown by default. They fill the
+ * first five cells of a 2x3 grid; the sixth is the "Others" tile, which
+ * reveals every `primary: false` category in place.
+ *
+ * Five rather than six because the sixth slot now has to hold the way in
+ * to the rest — the old text link under the grid was too easy to skip
+ * past, so the affordance had to become a tile like any other.
  *
  * `color` keys into the --pink / --blue / --yellow custom properties in
  * frontend/styles.css.
@@ -57,7 +62,14 @@ export const CATEGORIES = [
     color: "yellow",
     primary: true,
     labels: {
-      en: "Stay & Accommodation",
+      // "Stay & Accommodation" until it turned out that "Accommodation" is
+      // wider than a third of a small phone's screen at the tile's type
+      // size, so it always broke mid-word there. Shortened rather than
+      // hyphenated or shrunk: it is the only label in any of the three
+      // languages that did not fit, and one word is a cheaper fix than
+      // type that changes size with the viewport.
+      // CATEGORY_ADMIN_LABELS keeps the long form for the admin screens.
+      en: "Stay & Rooms",
       te: "వసతి & అతిథి గృహాలు",
       hi: "आवास एवं अतिथि गृह",
     },
@@ -73,9 +85,12 @@ export const CATEGORIES = [
     },
   },
   {
+    // Behind "Others" on purpose: five tiles plus the "Others" tile fill
+    // the grid exactly, and this is the one primary category a visitor is
+    // most likely to already know how to find.
     key: "canteens_shopping",
     color: "yellow",
-    primary: true,
+    primary: false,
     labels: {
       en: "Food & Shopping",
       te: "క్యాంటీన్లు, ఫలహారాలు & షాపింగ్",
@@ -88,7 +103,12 @@ export const CATEGORIES = [
     primary: true,
     labels: {
       en: "Gates",
-      te: "ప్రవేశ/నిష్క్రమణ గేట్లు",
+      // \u200B is a zero-width space, marking the slash as the place to
+      // break this compound — without it the whole thing is one long
+      // unbreakable run that chops mid-word on a narrow phone. A soft
+      // hyphen would be wrong: Telugu does not hyphenate, so the break
+      // has to be invisible rather than marked.
+      te: "ప్రవేశ/\u200Bనిష్క్రమణ గేట్లు",
       hi: "प्रवेश/निकास द्वार",
     },
   },

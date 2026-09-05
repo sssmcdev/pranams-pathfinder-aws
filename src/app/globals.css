@@ -103,7 +103,12 @@ body:has(#app) { overscroll-behavior: none; }
   align-items: center; justify-content: center; font: 700 11px/1.1 var(--font-body); letter-spacing: 0.02em;
 }
 .brand-text { min-width: 0; }
-.brand-text h1 { font: 400 30px/1.2 var(--font-display); margin: 0; text-wrap: balance; color: var(--pink); }
+/* 1.2 leading was set when the title was the single word "PRANAMS" and
+   never wrapped. "PRANAMS Pathfinder" needs ~296px to sit on one line and
+   has ~230px on a 390px phone, so it now always sets as a two-line
+   wordmark — and display serif at that size wants tighter leading between
+   the two lines than body copy does. */
+.brand-text h1 { font: 400 30px/1.08 var(--font-display); margin: 0; text-wrap: balance; color: var(--pink); }
 .brand-text .full-form { display: block; font: 500 10px/1.3 var(--font-body); color: var(--ink-soft); }
 .brand-text .sub { font: 600 11px/1.3 var(--font-body); color: var(--blue); text-transform: uppercase; letter-spacing: 0.08em; }
 
@@ -150,7 +155,13 @@ body:has(#app) { overscroll-behavior: none; }
 .search-clear::after, .info-btn::after { content: ""; position: absolute; inset: -12px; }
 .search input { border: none; outline: none; background: transparent; font: inherit; color: var(--ink); flex: 1; min-width: 0; }
 
-.cat-grid { flex-shrink: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 12px 18px 0; }
+/* minmax(0, 1fr), not 1fr: a bare 1fr floors every column at min-content,
+   which for a tile is its longest unbreakable word. A label wider than a
+   third of the screen would then hold its own column at full width while
+   the two beside it were squeezed to compensate — three tiles of visibly
+   different widths on a narrow phone. A 0 minimum keeps all three exactly
+   a third whatever the labels say. */
+.cat-grid { flex-shrink: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; padding: 12px 18px 0; }
 .cat-tile {
   display: flex; flex-direction: column; align-items: flex-start; gap: 8px;
   padding: 12px 10px; border-radius: 16px;
@@ -160,7 +171,33 @@ body:has(#app) { overscroll-behavior: none; }
 .cat-tile.active { outline: 2px solid var(--blue); outline-offset: -1px; }
 .cat-tile .ic { width: 36px; height: 36px; border-radius: 11px; display: flex; align-items: center; justify-content: center; }
 .cat-tile .ic svg { width: 19px; height: 19px; }
-.cat-tile span { font: 600 10.5px/1.3 var(--font-body); word-break: break-word; hyphens: auto; }
+/* Every label now fits its tile without breaking, but these three rules
+   keep a future long one from setting as "Accommodatio / n" again:
+
+   `overflow-wrap` rather than `word-break: break-word` — the latter is
+   `overflow-wrap: anywhere`, which chops mid-word AND shrinks the flex
+   item's min-content width, so a label broke even when it nearly fitted.
+   `width: 100%` because the tile is a column flex box with
+   align-items: flex-start: left to shrink-to-fit, the label's line box
+   just grows to its longest word, so an oversized word spills out of the
+   tile rather than wrapping inside it.
+   `hyphens: auto` to break at a syllable where the platform has a
+   dictionary for the language — not everywhere does, so it is a bonus
+   rather than something to rely on. */
+.cat-tile .cat-label {
+  width: 100%; font: 600 10.5px/1.3 var(--font-body);
+  overflow-wrap: break-word; hyphens: auto;
+}
+
+/* The "Others" tile. Deliberately the one tile with no category colour:
+   it stands for a group rather than a place, and the neutral fill is what
+   separates it from the five real categories beside it. It still has a
+   tile's size, border and icon well, because being missable is the exact
+   problem it exists to solve. */
+.cat-tile-others { background: var(--paper-raised); border-style: dashed; }
+.cat-tile-others .ic { background: var(--paper); color: var(--ink-soft); border: 1px solid var(--line); }
+.cat-tile-others.open { border-style: solid; background: var(--paper); }
+.cat-tile-others.open .ic { background: var(--ink-soft); color: var(--paper-raised); border-color: transparent; }
 
 .leaflet-popup-content-wrapper { background: var(--paper-raised); color: var(--ink); border-radius: 12px; }
 
@@ -236,11 +273,6 @@ body:has(#app) { overscroll-behavior: none; }
 .info-btn.active { background: var(--blue-soft); color: var(--blue); border-color: var(--blue); }
 .footer-link { background: none; border: none; color: var(--ink-soft); font: 600 11.5px/1 var(--font-body); cursor: pointer; padding: 6px; }
 .footer-link:hover { color: var(--blue); text-decoration: underline; }
-.more-cats-toggle {
-  flex: none; background: none; border: none; color: var(--blue);
-  font: 600 11px/1 var(--font-body); cursor: pointer; padding: 6px 18px 0; text-align: left;
-}
-.more-cats-toggle:hover { text-decoration: underline; }
 
 .feedback-rating { display: flex; flex-direction: column; gap: 6px; }
 .feedback-label { font: 600 12.5px/1.3 var(--font-body); color: var(--ink); }

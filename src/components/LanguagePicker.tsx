@@ -27,7 +27,7 @@ export function LanguagePicker({ onPick }: { onPick: (lang: Lang) => void }) {
         alt="Sri Sathya Sai Central Trust logo"
         onError={(e) => e.currentTarget.remove()}
       />
-      <h1 className="lang-select-title">PRANAMS</h1>
+      <h1 className="lang-select-title">PRANAMS Pathfinder</h1>
       <p className="lang-select-sub">
         Select your language &middot; మీ భాషను ఎంచుకోండి &middot; अपनी भाषा चुनें
       </p>

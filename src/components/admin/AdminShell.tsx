@@ -58,7 +58,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
             else setError("Invalid credentials.");
           }}
         >
-          <h1>PRANAMS Admin</h1>
+          <h1>PRANAMS Pathfinder Admin</h1>
           <input
             type="text"
             placeholder="Username"
@@ -88,7 +88,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
     <div className="admin">
       <aside className="admin-sidebar">
         <h2 className="admin-brand">
-          PRANAMS
+          PRANAMS Pathfinder
           <small>Admin</small>
         </h2>
         {groups.map((group) => (

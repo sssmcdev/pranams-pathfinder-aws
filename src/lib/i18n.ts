@@ -72,8 +72,11 @@ export const UI_STRINGS = {
     te: "అభిప్రాయాన్ని పంపలేకపోయాము. దయచేసి మళ్లీ ప్రయత్నించండి.",
     hi: "प्रतिक्रिया नहीं भेजी जा सकी। कृपया पुनः प्रयास करें।",
   },
-  more_categories: { en: "More categories ▾", te: "మరిన్ని వర్గాలు ▾", hi: "अधिक श्रेणियाँ ▾" },
-  fewer_categories: { en: "Fewer categories ▴", te: "తక్కువ వర్గాలు ▴", hi: "कम श्रेणियाँ ▴" },
+  // Labels the "Others" tile that occupies the sixth slot of the category
+  // grid. It replaced a text link under the grid that visitors skipped
+  // past, so the wording is a plain noun — it names a group of
+  // categories, not an action.
+  other_categories: { en: "Others", te: "ఇతరాలు", hi: "अन्य" },
   geofence_checking: {
     en: "Checking your location…",
     te: "మీ లొకేషన్‌ను తనిఖీ చేస్తోంది…",
