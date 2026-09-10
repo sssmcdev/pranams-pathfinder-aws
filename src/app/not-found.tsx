@@ -15,7 +15,7 @@ export default function NotFound() {
         />
         <div className="brand-text">
           <span className="sub">Sri Sathya Sai Central Trust</span>
-          <h1>PRANAMS Pathfinder</h1>
+          <h1>Prasanthi Path&nbsp;Finder</h1>
           <span className="full-form">Prasanthi Nilayam Ashram Management System</span>
         </div>
       </div>
@@ -31,7 +31,7 @@ export default function NotFound() {
         <h2>Page not found</h2>
         <p>This page doesn&apos;t exist, or the link may be out of date.</p>
         <Link className="cta" href="/">
-          Back to PRANAMS Pathfinder
+          Back to Prasanthi Path&nbsp;Finder
         </Link>
       </div>
     </div>
