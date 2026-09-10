@@ -9,10 +9,53 @@ import "./globals.css";
 import "leaflet/dist/leaflet.css";
 
 import { LangProvider } from "@/components/LangProvider";
+import { APP_DESCRIPTION, APP_NAME, APP_SHORT_NAME } from "@/lib/brand";
+
+// og: tags must carry absolute URLs — a crawler unfurling a shared link has no
+// page to resolve /assets/og-image.png against. Vercel exposes the production
+// domain at build time; NEXT_PUBLIC_SITE_URL overrides it once a custom domain
+// is in front of it, and localhost keeps `next dev` from emitting a bare path.
+const siteUrl =
+  process.env.NEXT_PUBLIC_SITE_URL ??
+  (process.env.VERCEL_PROJECT_PRODUCTION_URL
+    ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+    : "http://localhost:3000");
 
 export const metadata: Metadata = {
-  title: "Prasanthi Path Finder",
-  description: "Prasanthi Nilayam Ashram Management System",
+  metadataBase: new URL(siteUrl),
+  title: APP_NAME,
+  description: APP_DESCRIPTION,
+  applicationName: APP_NAME,
+  // Passing an object here also opts iOS into a chrome-less launch, matching
+  // the manifest's display: "standalone" on Android — the visitor screens are
+  // already a fixed frame laid out against env(safe-area-inset-*), so they
+  // expect the full screen. Set capable: false and display: "browser" together
+  // if a home-screen launch should keep the browser bar instead.
+  appleWebApp: { title: APP_SHORT_NAME },
+  openGraph: {
+    type: "website",
+    url: "/",
+    siteName: APP_NAME,
+    title: APP_NAME,
+    description: APP_DESCRIPTION,
+    locale: "en_IN",
+    // Rendered from the emblem and the wordmark at the 1.91:1 the previewers
+    // crop to, so nothing important sits near an edge.
+    images: [
+      {
+        url: "/assets/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: `${APP_NAME} — Sri Sathya Sai Central Trust`,
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: APP_NAME,
+    description: APP_DESCRIPTION,
+    images: ["/assets/og-image.png"],
+  },
 };
 
 export const viewport: Viewport = {
