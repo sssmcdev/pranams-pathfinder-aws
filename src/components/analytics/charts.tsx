@@ -93,9 +93,19 @@ export function CategoryChart({ data }: { data: { label: string; count: number }
   return <canvas ref={canvas} />;
 }
 
-/** "2026-08-08" -> "8 Aug"; "2026-W32" and "2026-08" pass through shaped. */
+/**
+ * "2026-08-08" -> "8 Aug"; "2026-W32" and "2026-08" pass through shaped;
+ * "2026-08-08 15:00" (hour granularity) -> "8 Aug, 3 PM".
+ */
 export function bucketLabel(bucket: string): string {
   if (bucket.includes("W")) return bucket.replace("-", " ");
+  if (bucket.includes(" ")) {
+    const [datePart, hourPart] = bucket.split(" ");
+    const d = new Date(`${datePart}T${hourPart}:00Z`);
+    const day = d.toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
+    const hour = d.toLocaleTimeString("en-GB", { hour: "numeric", hour12: true, timeZone: "UTC" });
+    return `${day}, ${hour}`;
+  }
   const parts = bucket.split("-");
   if (parts.length === 2) {
     const d = new Date(`${bucket}-01T00:00:00Z`);

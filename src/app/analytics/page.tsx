@@ -15,6 +15,19 @@ interface Dashboard {
   map_points: { lat: number; lon: number }[];
 }
 
+interface VisitRow {
+  id: string;
+  device_id: string;
+  scanned_at: string;
+  from_lat: number;
+  from_lon: number;
+  directions_poi_id: string | null;
+  destination_name: string | null;
+  to_lat: number | null;
+  to_lon: number | null;
+  directions_at: string | null;
+}
+
 const RANGES = [
   ["today", "Today"],
   ["7d", "7 days"],
@@ -24,6 +37,7 @@ const RANGES = [
 ] as const;
 
 const GRANULARITIES = [
+  ["hour", "Hour"],
   ["day", "Day"],
   ["week", "Week"],
   ["month", "Month"],
@@ -54,6 +68,25 @@ function Segmented<T extends string>({
       ))}
     </div>
   );
+}
+
+function mapLink(lat: number, lon: number): string {
+  return `https://www.google.com/maps?q=${lat},${lon}`;
+}
+
+function routeLink(fromLat: number, fromLon: number, toLat: number, toLon: number): string {
+  return `https://www.google.com/maps/dir/?api=1&origin=${fromLat},${fromLon}&destination=${toLat},${toLon}`;
+}
+
+function visitTime(iso: string): string {
+  return new Date(iso).toLocaleString("en-IN", {
+    timeZone: "Asia/Kolkata",
+    day: "numeric",
+    month: "short",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
 }
 
 function RankList({
@@ -99,6 +132,11 @@ export default function AnalyticsPage() {
   const [loading, setLoading] = useState(false);
   const [showTable, setShowTable] = useState<Record<string, boolean>>({});
 
+  const [visits, setVisits] = useState<VisitRow[]>([]);
+  const [visitsTotal, setVisitsTotal] = useState(0);
+  const [visitsPage, setVisitsPage] = useState(0);
+  const [visitsLoading, setVisitsLoading] = useState(false);
+
   useEffect(() => {
     (async () => {
       try {
@@ -132,10 +170,25 @@ export default function AnalyticsPage() {
     setDevices(body.devices ?? []);
   }, []);
 
+  const loadVisits = useCallback(async (page: number) => {
+    setVisitsLoading(true);
+    try {
+      const res = await fetch(`/api/analytics/visits?page=${page}`);
+      if (res.status === 401) return;
+      const body = await res.json();
+      setVisits(body.visits ?? []);
+      setVisitsTotal(body.total ?? 0);
+    } finally {
+      setVisitsLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (authState !== "in") return;
     void loadDashboard();
     void loadDevices();
+    void loadVisits(0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authState, loadDashboard, loadDevices]);
 
   if (authState !== "in") {
@@ -334,6 +387,85 @@ export default function AnalyticsPage() {
           <DevicesMap devices={devices} />
         ) : (
           <p className="empty-state">No devices with a recent location in the last hour.</p>
+        )}
+      </div>
+
+      <div className={`chart-card${visitsLoading ? " loading" : ""}`}>
+        <div className="chart-card-head">
+          <h2>Scans &amp; directions requested</h2>
+        </div>
+        {!visits.length ? (
+          <p className="empty-state">No scans logged yet.</p>
+        ) : (
+          <>
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Time</th>
+                    <th>Device</th>
+                    <th>Scan location</th>
+                    <th>Directions requested to</th>
+                    <th>Route</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {visits.map((v) => (
+                    <tr key={v.id}>
+                      <td>{visitTime(v.scanned_at)}</td>
+                      <td>{v.device_id.slice(0, 8)}&hellip;</td>
+                      <td>
+                        <a href={mapLink(v.from_lat, v.from_lon)} target="_blank" rel="noopener">
+                          View
+                        </a>
+                      </td>
+                      <td>{v.destination_name ?? "—"}</td>
+                      <td>
+                        {v.to_lat != null && v.to_lon != null ? (
+                          <a
+                            href={routeLink(v.from_lat, v.from_lon, v.to_lat, v.to_lon)}
+                            target="_blank"
+                            rel="noopener"
+                          >
+                            View route
+                          </a>
+                        ) : (
+                          "—"
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="visits-pager">
+              <button
+                className="table-toggle"
+                disabled={visitsPage === 0}
+                onClick={() => {
+                  const p = visitsPage - 1;
+                  setVisitsPage(p);
+                  void loadVisits(p);
+                }}
+              >
+                &larr; Newer
+              </button>
+              <span className="muted">
+                {visitsPage * 25 + 1}&ndash;{Math.min((visitsPage + 1) * 25, visitsTotal)} of {visitsTotal}
+              </span>
+              <button
+                className="table-toggle"
+                disabled={(visitsPage + 1) * 25 >= visitsTotal}
+                onClick={() => {
+                  const p = visitsPage + 1;
+                  setVisitsPage(p);
+                  void loadVisits(p);
+                }}
+              >
+                Older &rarr;
+              </button>
+            </div>
+          </>
         )}
       </div>
     </div>
