@@ -1,13 +1,13 @@
 import { getVisits } from "@/lib/analytics-service";
 import { badRequest } from "@/lib/http";
-import { requireAdmin } from "@/lib/session";
+import { requireAnalytics } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
 const PAGE_SIZE = 25;
 
 export async function GET(request: Request) {
-  const denied = await requireAdmin();
+  const denied = await requireAnalytics();
   if (denied) return denied;
 
   const params = new URL(request.url).searchParams;

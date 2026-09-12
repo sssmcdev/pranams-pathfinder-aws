@@ -17,27 +17,55 @@ const NAV = [
 export function AdminShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const [state, setState] = useState<"checking" | "login" | "in">("checking");
+  const [state, setState] = useState<"checking" | "login" | "denied" | "in">("checking");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
+  // /admin is admin-only — a valid session that isn't role "admin" (e.g. one
+  // of the analytics-only logins) must not see this panel just because
+  // `authenticated` is true.
+  const checkSession = async () => {
+    try {
+      const res = await fetch("/api/auth/session");
+      const { authenticated, role, must_change_password } = await res.json();
+      if (!authenticated) setState("login");
+      else if (role === "admin" && !must_change_password) setState("in");
+      else setState("denied");
+    } catch {
+      setState("login");
+    }
+  };
+
   useEffect(() => {
-    (async () => {
-      try {
-        const res = await fetch("/api/auth/session");
-        const { authenticated } = await res.json();
-        setState(authenticated ? "in" : "login");
-      } catch {
-        setState("login");
-      }
-    })();
+    checkSession();
   }, []);
 
   if (state === "checking") {
     return (
       <div className="admin-login">
         <p className="muted">Checking session…</p>
+      </div>
+    );
+  }
+
+  if (state === "denied") {
+    return (
+      <div className="admin-login">
+        <h1>Prasanthi Path&nbsp;Finder Admin</h1>
+        <p className="muted">
+          This account doesn&apos;t have access to the admin panel.
+        </p>
+        <button
+          type="button"
+          className="btn btn-primary"
+          onClick={async () => {
+            await fetch("/api/auth/logout", { method: "POST" });
+            setState("login");
+          }}
+        >
+          Sign out
+        </button>
       </div>
     );
   }
@@ -54,7 +82,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ username, password }),
             });
-            if (res.ok) setState("in");
+            if (res.ok) await checkSession();
             else setError("Invalid credentials.");
           }}
         >

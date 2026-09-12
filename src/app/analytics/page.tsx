@@ -121,10 +121,15 @@ function RankList({
 }
 
 export default function AnalyticsPage() {
-  const [authState, setAuthState] = useState<"checking" | "login" | "in">("checking");
+  const [authState, setAuthState] = useState<"checking" | "login" | "change-password" | "in">("checking");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState("");
+
+  const [newPassword, setNewPassword] = useState("");
+  const [newPasswordConfirm, setNewPasswordConfirm] = useState("");
+  const [changePasswordError, setChangePasswordError] = useState("");
+  const [changingPassword, setChangingPassword] = useState(false);
 
   const [range, setRange] = useState<(typeof RANGES)[number][0]>("30d");
   const [granularity, setGranularity] = useState<(typeof GRANULARITIES)[number][0]>("day");
@@ -142,8 +147,8 @@ export default function AnalyticsPage() {
     (async () => {
       try {
         const res = await fetch("/api/auth/session");
-        const { authenticated } = await res.json();
-        setAuthState(authenticated ? "in" : "login");
+        const { authenticated, must_change_password } = await res.json();
+        setAuthState(!authenticated ? "login" : must_change_password ? "change-password" : "in");
       } catch {
         setAuthState("login");
       }
@@ -197,6 +202,55 @@ export default function AnalyticsPage() {
       <div className="auth-gate">
         {authState === "checking" ? (
           <p className="muted">Checking session…</p>
+        ) : authState === "change-password" ? (
+          <form
+            className="login-form"
+            onSubmit={async (e) => {
+              e.preventDefault();
+              setChangePasswordError("");
+              if (newPassword !== newPasswordConfirm) {
+                setChangePasswordError("Passwords don't match.");
+                return;
+              }
+              setChangingPassword(true);
+              try {
+                const res = await fetch("/api/auth/change-password", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ new_password: newPassword }),
+                });
+                if (res.ok) {
+                  setAuthState("in");
+                } else {
+                  const body = await res.json().catch(() => ({}));
+                  setChangePasswordError(body.detail ?? "Couldn't change password.");
+                }
+              } finally {
+                setChangingPassword(false);
+              }
+            }}
+          >
+            <h1>Prasanthi Path&nbsp;Finder Analytics</h1>
+            <p className="muted">This is your first sign-in — choose a new password to continue.</p>
+            <input
+              type="password"
+              placeholder="New password"
+              autoComplete="new-password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+            />
+            <input
+              type="password"
+              placeholder="Confirm new password"
+              autoComplete="new-password"
+              value={newPasswordConfirm}
+              onChange={(e) => setNewPasswordConfirm(e.target.value)}
+            />
+            {changePasswordError && <p className="login-error">{changePasswordError}</p>}
+            <button type="submit" className="btn-primary" disabled={changingPassword}>
+              Set password
+            </button>
+          </form>
         ) : (
           <form
             className="login-form"
@@ -208,12 +262,16 @@ export default function AnalyticsPage() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ username, password }),
               });
-              if (res.ok) setAuthState("in");
-              else setLoginError("Invalid credentials.");
+              if (res.ok) {
+                const body = await res.json();
+                setAuthState(body.must_change_password ? "change-password" : "in");
+              } else {
+                setLoginError("Invalid credentials.");
+              }
             }}
           >
             <h1>Prasanthi Path&nbsp;Finder Analytics</h1>
-            <p className="muted">Admin sign-in required.</p>
+            <p className="muted">Sign-in required.</p>
             <input
               type="text"
               placeholder="Username"
