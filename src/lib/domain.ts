@@ -62,16 +62,14 @@ export const CATEGORIES = [
     color: "yellow",
     primary: true,
     labels: {
-      // "Stay & Accommodation" until it turned out that "Accommodation" is
-      // wider than a third of a small phone's screen at the tile's type
-      // size, so it always broke mid-word there. Shortened rather than
-      // hyphenated or shrunk: it is the only label in any of the three
-      // languages that did not fit, and one word is a cheaper fix than
-      // type that changes size with the viewport.
+      // "Accommodation" is wider than a third of a small phone's screen at
+      // the tile's type size and wraps mid-word ("Accommod" / "ation") on
+      // devices like iPhone SE — confirmed, not theoretical. Kept anyway:
+      // deliberate choice over the shorter "Stay & Rooms" this replaced.
       // CATEGORY_ADMIN_LABELS keeps the long form for the admin screens.
-      en: "Stay & Rooms",
-      te: "వసతి & అతిథి గృహాలు",
-      hi: "आवास एवं अतिथि गृह",
+      en: "Accommodation",
+      te: "వసతి",
+      hi: "आवास",
     },
   },
   {
