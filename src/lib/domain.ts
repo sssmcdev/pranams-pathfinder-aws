@@ -67,8 +67,8 @@ export const CATEGORIES = [
     color: "blue",
     primary: true,
     labels: {
-      en: "Water & Restrooms",
-      te: "నీరు & విశ్రాంతి గదులు",
+      en: "Water & Toilets",
+      te: "నీరు & మరుగుదొడ్లు",
       hi: "पानी एवं शौचालय",
     },
   },
