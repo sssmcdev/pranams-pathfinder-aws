@@ -35,6 +35,11 @@ const IST = "Asia/Kolkata";
  *  burst. See topSearches in getDashboard(). */
 const BURST_GAP_SECONDS = 10;
 
+/** Decimal places scan coordinates are rounded to when clustering "which
+ *  QR location" a scan is near. 4 ~= an 11m grid cell. See scanClusters
+ *  in getDashboard(). */
+const CLUSTER_PRECISION = 4;
+
 /** db.execute() is untyped by design (raw SQL). This narrows the result in
  *  one place rather than scattering double-casts through every query. */
 function rows<T>(result: unknown): T[] {
@@ -110,6 +115,7 @@ export interface DashboardResult {
   top_searches: { query: string; count: number }[];
   categories: { category: string; label: string; count: number }[];
   map_points: { lat: number; lon: number }[];
+  scan_clusters: { lat: number; lon: number; count: number }[];
 }
 
 export async function getDashboard(
@@ -231,6 +237,23 @@ export async function getDashboard(
       where event_type = 'open' and lat is not null and lon is not null
         and ${windowFilter(start, null)}`);
 
+  // No QR code encodes which physical location it is — every scan is just
+  // a GPS point from the visitor's own phone. Approximated instead: round
+  // to CLUSTER_PRECISION decimal places (~11m grid cells at this
+  // latitude) and count scans per cell. Visitors scanning the same
+  // physical kiosk land within a few metres of each other and GPS noise
+  // is typically 5-15m, so this groups "the same QR code" scans together
+  // without needing any new tracking. Coarser or finer grids are a
+  // one-constant change if 11m turns out wrong in practice.
+  const scanClusters = await db.execute(sql`
+      select round(lat::numeric, ${CLUSTER_PRECISION})::float8 as lat,
+             round(lon::numeric, ${CLUSTER_PRECISION})::float8 as lon,
+             count(*)::int as count
+      from analytics_events
+      where event_type = 'open' and lat is not null and lon is not null
+        and ${windowFilter(start, null)}
+      group by 1, 2 order by 3 desc`);
+
   return {
     totals,
     timeseries: rows<DashboardResult["timeseries"][number]>(timeseries),
@@ -241,6 +264,7 @@ export async function getDashboard(
       label: CATEGORY_ADMIN_LABELS[c.category as CategoryKey] ?? c.category,
     })),
     map_points: rows<DashboardResult["map_points"][number]>(mapPoints),
+    scan_clusters: rows<DashboardResult["scan_clusters"][number]>(scanClusters),
   };
 }
 

@@ -8,8 +8,26 @@ import { ASHRAM_CENTER } from "@/lib/geo";
 const TILES = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
 const ATTRIBUTION = "&copy; OpenStreetMap contributors";
 
-/** Heatmap of where the app is opened. */
-export function UsageHeatmap({ points }: { points: { lat: number; lon: number }[] }) {
+export interface ScanCluster {
+  lat: number;
+  lon: number;
+  count: number;
+}
+
+/**
+ * Heatmap of where the app is opened, plus a labelled marker per scan
+ * cluster (nearby scans grouped into an ~11m cell — see scanClusters in
+ * analytics-service.ts) showing how many scans came from around there.
+ * There is no real "which QR code" identity to show instead — this is the
+ * closest approximation to it from GPS alone.
+ */
+export function UsageHeatmap({
+  points,
+  clusters,
+}: {
+  points: { lat: number; lon: number }[];
+  clusters: ScanCluster[];
+}) {
   const node = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -33,6 +51,17 @@ export function UsageHeatmap({ points }: { points: { lat: number; lon: number }[
         const bounds = L.latLngBounds(points.map((p) => [p.lat, p.lon] as [number, number]));
         map.fitBounds(bounds, { padding: [30, 30], maxZoom: 17 });
       }
+      for (const c of clusters) {
+        L.marker([c.lat, c.lon], {
+          icon: L.divIcon({
+            className: "scan-count-marker",
+            html: `<span>${c.count}</span>`,
+            iconSize: [28, 28],
+          }),
+        })
+          .addTo(map)
+          .bindPopup(`<b>${c.count} scan${c.count === 1 ? "" : "s"}</b> near here`);
+      }
       requestAnimationFrame(() => map?.invalidateSize());
     })();
 
@@ -40,7 +69,7 @@ export function UsageHeatmap({ points }: { points: { lat: number; lon: number }[
       cancelled = true;
       map?.remove();
     };
-  }, [points]);
+  }, [points, clusters]);
 
   return <div id="usage-map" ref={node} />;
 }

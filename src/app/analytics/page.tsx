@@ -13,6 +13,7 @@ interface Dashboard {
   top_searches: { query: string; count: number }[];
   categories: { category: string; label: string; count: number }[];
   map_points: { lat: number; lon: number }[];
+  scan_clusters: { lat: number; lon: number; count: number }[];
 }
 
 interface VisitRow {
@@ -365,10 +366,12 @@ export default function AnalyticsPage() {
 
       <div className="chart-card">
         <div className="chart-card-head">
-          <h2>Where the app is used</h2>
+          <h2>
+            Where the app is used <span className="muted">(numbered markers: scans per cluster)</span>
+          </h2>
         </div>
         {data?.map_points.length ? (
-          <UsageHeatmap points={data.map_points} />
+          <UsageHeatmap points={data.map_points} clusters={data.scan_clusters} />
         ) : (
           <p className="empty-state">No location data in this range yet.</p>
         )}
