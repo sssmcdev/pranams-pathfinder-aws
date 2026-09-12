@@ -48,16 +48,6 @@ export const CATEGORIES = [
     },
   },
   {
-    key: "spiritual_places",
-    color: "pink",
-    primary: true,
-    labels: {
-      en: "Other Temples",
-      te: "ఆధ్యాత్మిక ప్రదేశాలు, ఇతర దేవాలయాలు & ఆడిటోరియంలు",
-      hi: "आध्यात्मिक स्थल, अन्य मंदिर एवं सभागार",
-    },
-  },
-  {
     key: "accommodation",
     color: "yellow",
     primary: true,
@@ -83,12 +73,19 @@ export const CATEGORIES = [
     },
   },
   {
-    // Behind "Others" on purpose: five tiles plus the "Others" tile fill
-    // the grid exactly, and this is the one primary category a visitor is
-    // most likely to already know how to find.
+    key: "library",
+    color: "yellow",
+    primary: true,
+    labels: {
+      en: "Library, Books & Photos",
+      te: "లైబ్రరీ & బుక్ స్టాల్స్",
+      hi: "पुस्तकालय एवं पुस्तक स्टॉल",
+    },
+  },
+  {
     key: "canteens_shopping",
     color: "yellow",
-    primary: false,
+    primary: true,
     labels: {
       en: "Food & Shopping",
       te: "క్యాంటీన్లు, ఫలహారాలు & షాపింగ్",
@@ -96,9 +93,19 @@ export const CATEGORIES = [
     },
   },
   {
+    key: "spiritual_places",
+    color: "pink",
+    primary: false,
+    labels: {
+      en: "Other Temples",
+      te: "ఆధ్యాత్మిక ప్రదేశాలు, ఇతర దేవాలయాలు & ఆడిటోరియంలు",
+      hi: "आध्यात्मिक स्थल, अन्य मंदिर एवं सभागार",
+    },
+  },
+  {
     key: "gates",
     color: "blue",
-    primary: true,
+    primary: false,
     labels: {
       en: "Gates",
       // \u200B is a zero-width space, marking the slash as the place to
@@ -108,16 +115,6 @@ export const CATEGORIES = [
       // has to be invisible rather than marked.
       te: "ప్రవేశ/\u200Bనిష్క్రమణ గేట్లు",
       hi: "प्रवेश/निकास द्वार",
-    },
-  },
-  {
-    key: "library",
-    color: "yellow",
-    primary: false,
-    labels: {
-      en: "Library, Books & Photos",
-      te: "లైబ్రరీ & బుక్ స్టాల్స్",
-      hi: "पुस्तकालय एवं पुस्तक स्टॉल",
     },
   },
   {
