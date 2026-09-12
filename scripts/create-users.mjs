@@ -31,6 +31,7 @@ const USERS = [
   "sundar.s@sssmediacentre.org",
   "ce@mail.sssct.org",
   "sssitc@gmail.com",
+  "sravan.pvsr@gmail.com",
 ];
 
 function loadEnv() {
