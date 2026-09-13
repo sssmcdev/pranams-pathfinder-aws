@@ -16,26 +16,28 @@ import { VisitorApp } from "@/components/VisitorApp";
  */
 export function PreviewGate() {
   const { t } = useLang();
-  const [state, setState] = useState<"checking" | "login" | "in">("checking");
+  const [state, setState] = useState<"checking" | "login" | "denied" | "in">("checking");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
+  // Admin only — an analytics-only login must not land here, since preview
+  // bypasses the location check /analytics has no reason to grant.
+  const checkSession = async () => {
+    try {
+      const res = await fetch("/api/auth/session");
+      const { authenticated, role, must_change_password } = await res.json();
+      if (!authenticated) setState("login");
+      else if (role === "admin" && !must_change_password) setState("in");
+      else setState("denied");
+    } catch {
+      setState("login");
+    }
+  };
+
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await fetch("/api/auth/session");
-        const { authenticated } = await res.json();
-        if (!cancelled) setState(authenticated ? "in" : "login");
-      } catch {
-        if (!cancelled) setState("login");
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
+    checkSession();
   }, []);
 
   if (state === "in") return <VisitorApp openCoords={null} analyticsEnabled={false} />;
@@ -44,6 +46,21 @@ export function PreviewGate() {
     <div className="geofence-overlay" style={{ display: "flex" }}>
       {state === "checking" ? (
         <p className="geofence-text">{t("geofence_checking_session")}</p>
+      ) : state === "denied" ? (
+        <div className="preview-login" style={{ display: "flex" }}>
+          <p className="geofence-text">This account doesn&apos;t have access to preview.</p>
+          <button
+            type="button"
+            className="cta"
+            style={{ width: "auto", padding: "12px 28px" }}
+            onClick={async () => {
+              await fetch("/api/auth/logout", { method: "POST" });
+              setState("login");
+            }}
+          >
+            Sign out
+          </button>
+        </div>
       ) : (
         <form
           className="preview-login"
@@ -58,7 +75,7 @@ export function PreviewGate() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ username, password }),
               });
-              if (res.ok) setState("in");
+              if (res.ok) await checkSession();
               else setError("Invalid credentials.");
             } catch {
               setError("Couldn't sign in. Please try again.");

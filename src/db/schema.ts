@@ -156,6 +156,31 @@ export const deviceFlags = pgTable(
   ],
 );
 
+/**
+ * Named logins, additive to the single shared admin credential in
+ * session.ts (env vars ADMIN_USER/ADMIN_PASSWORD) — that account still
+ * works unchanged and is always role "admin". This table is for people
+ * who should NOT have that account's full access, e.g. analytics-only
+ * viewers. NOT a mirror of anything in the Python app — genuinely new,
+ * so (unlike every other table above) this one needs an actual
+ * `CREATE TABLE` migration, not just a Drizzle definition matching
+ * something that already exists.
+ */
+export const users = pgTable("users", {
+  id: varchar("id").primaryKey(),
+  email: varchar("email").notNull().unique(),
+  passwordHash: varchar("password_hash").notNull(),
+  role: varchar("role").notNull(), // "admin" | "analytics" — see lib/session.ts
+  // True until they change it themselves via /api/auth/change-password.
+  // Enforced server-side: a session for a user with this still true can
+  // reach nothing except that one endpoint.
+  mustChangePassword: boolean("must_change_password").notNull().$defaultFn(() => true),
+  createdAt: varchar("created_at").notNull(),
+});
+
+export type User = typeof users.$inferSelect;
+export type NewUser = typeof users.$inferInsert;
+
 export const poisRelations = relations(pois, ({ many }) => ({
   subPlaces: many(subPlaces),
 }));

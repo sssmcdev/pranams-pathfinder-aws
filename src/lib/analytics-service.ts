@@ -30,6 +30,16 @@ import { CATEGORY_ADMIN_LABELS, type CategoryKey } from "./domain";
 
 const IST = "Asia/Kolkata";
 
+/** How long a gap between one device's logged searches can be before it
+ *  counts as a new search rather than a continuation of the same typing
+ *  burst. See topSearches in getDashboard(). */
+const BURST_GAP_SECONDS = 10;
+
+/** Decimal places scan coordinates are rounded to when clustering "which
+ *  QR location" a scan is near. 4 ~= an 11m grid cell. See scanClusters
+ *  in getDashboard(). */
+const CLUSTER_PRECISION = 4;
+
 /** db.execute() is untyped by design (raw SQL). This narrows the result in
  *  one place rather than scattering double-casts through every query. */
 function rows<T>(result: unknown): T[] {
@@ -39,7 +49,7 @@ function rows<T>(result: unknown): T[] {
 export const RANGES = ["today", "7d", "30d", "90d", "all"] as const;
 export type Range = (typeof RANGES)[number];
 
-export const GRANULARITIES = ["day", "week", "month"] as const;
+export const GRANULARITIES = ["hour", "day", "week", "month"] as const;
 export type Granularity = (typeof GRANULARITIES)[number];
 
 const RANGE_DAYS: Record<Exclude<Range, "today" | "all">, number> = { "7d": 7, "30d": 30, "90d": 90 };
@@ -84,6 +94,10 @@ function bucketExpr(granularity: Granularity) {
   const local = sql`(created_at::timestamptz AT TIME ZONE ${IST})`;
   if (granularity === "month") return sql`to_char(${local}, 'YYYY-MM')`;
   if (granularity === "week") return sql`to_char(${local}, 'IYYY-"W"IW')`;
+  // Space-separated from the date on purpose — bucketLabel() in charts.tsx
+  // tells hour buckets apart from day buckets by checking for that space,
+  // rather than needing a 4th, differently-shaped format to parse.
+  if (granularity === "hour") return sql`to_char(${local}, 'YYYY-MM-DD HH24:00')`;
   return sql`to_char(${local}, 'YYYY-MM-DD')`;
 }
 
@@ -101,6 +115,7 @@ export interface DashboardResult {
   top_searches: { query: string; count: number }[];
   categories: { category: string; label: string; count: number }[];
   map_points: { lat: number; lon: number }[];
+  scan_clusters: { lat: number; lon: number; count: number }[];
 }
 
 export async function getDashboard(
@@ -177,10 +192,38 @@ export async function getDashboard(
               + count(*) filter (where e.event_type = 'directions')) desc
       limit 10`);
 
+  // The search box logs one event per settled (debounced) keystroke pause,
+  // not one per finished thought — typing "shopping" with a couple of
+  // natural pauses logs "sho", then "shopping", as two separate events for
+  // the same device. Counting raw rows here would show "Top searches" as a
+  // pile of prefixes of the same word. Instead: collapse each device's
+  // rapid-fire run of searches (gaps under BURST_GAP_SECONDS) down to only
+  // its last, and count final search terms, not every intermediate one.
   const topSearches = await db.execute(sql`
+      with search_events as (
+        select device_id, search_query, created_at::timestamptz as ts
+        from analytics_events
+        where event_type = 'search' and search_query is not null and device_id is not null
+          and ${windowFilter(start, null)}
+      ),
+      gapped as (
+        select *,
+          extract(epoch from ts - lag(ts) over (partition by device_id order by ts)) as gap_seconds
+        from search_events
+      ),
+      bursts as (
+        select *,
+          sum(case when gap_seconds is null or gap_seconds > ${BURST_GAP_SECONDS} then 1 else 0 end)
+            over (partition by device_id order by ts) as burst_id
+        from gapped
+      ),
+      finals as (
+        select distinct on (device_id, burst_id) device_id, burst_id, search_query
+        from bursts
+        order by device_id, burst_id, ts desc
+      )
       select search_query as query, count(*)::int as count
-      from analytics_events
-      where event_type = 'search' and search_query is not null and ${windowFilter(start, null)}
+      from finals
       group by 1 order by 2 desc, 1 limit 10`);
 
   const categories = await db.execute(sql`
@@ -194,6 +237,23 @@ export async function getDashboard(
       where event_type = 'open' and lat is not null and lon is not null
         and ${windowFilter(start, null)}`);
 
+  // No QR code encodes which physical location it is — every scan is just
+  // a GPS point from the visitor's own phone. Approximated instead: round
+  // to CLUSTER_PRECISION decimal places (~11m grid cells at this
+  // latitude) and count scans per cell. Visitors scanning the same
+  // physical kiosk land within a few metres of each other and GPS noise
+  // is typically 5-15m, so this groups "the same QR code" scans together
+  // without needing any new tracking. Coarser or finer grids are a
+  // one-constant change if 11m turns out wrong in practice.
+  const scanClusters = await db.execute(sql`
+      select round(lat::numeric, ${CLUSTER_PRECISION})::float8 as lat,
+             round(lon::numeric, ${CLUSTER_PRECISION})::float8 as lon,
+             count(*)::int as count
+      from analytics_events
+      where event_type = 'open' and lat is not null and lon is not null
+        and ${windowFilter(start, null)}
+      group by 1, 2 order by 3 desc`);
+
   return {
     totals,
     timeseries: rows<DashboardResult["timeseries"][number]>(timeseries),
@@ -204,7 +264,70 @@ export async function getDashboard(
       label: CATEGORY_ADMIN_LABELS[c.category as CategoryKey] ?? c.category,
     })),
     map_points: rows<DashboardResult["map_points"][number]>(mapPoints),
+    scan_clusters: rows<DashboardResult["scan_clusters"][number]>(scanClusters),
   };
+}
+
+export interface VisitRow {
+  id: string;
+  device_id: string;
+  scanned_at: string;
+  from_lat: number;
+  from_lon: number;
+  directions_poi_id: string | null;
+  destination_name: string | null;
+  to_lat: number | null;
+  to_lon: number | null;
+  directions_at: string | null;
+}
+
+/**
+ * One row per "open" event (a visitor loading the app — a "scan", since
+ * the QR code at each physical location is what most visitors use to get
+ * there) with its location, plus whichever "directions" request from the
+ * same device came next, if any, so an admin can see both where someone
+ * was and where they then asked to go.
+ *
+ * "Next" is bounded by that device's *next* open event (via LEAD) so a
+ * direction request from a visitor's following, unrelated visit hours
+ * later never gets attached to this one. A device's very last visit has
+ * no upper bound — any later direction request is fair game.
+ *
+ * No range filter: this is a browse/audit log, not a trend panel — it is
+ * paginated instead, newest first.
+ */
+export async function getVisits(limit: number, offset: number) {
+  const totalResult = await db.execute(sql`
+    select count(*)::int as count from analytics_events
+    where event_type = 'open' and device_id is not null and lat is not null and lon is not null`);
+  const total = rows<{ count: number }>(totalResult)[0]?.count ?? 0;
+
+  const visits = await db.execute(sql`
+    with opens as (
+      select id, device_id, lat, lon, created_at::timestamptz as ts,
+        lead(created_at::timestamptz) over (partition by device_id order by created_at::timestamptz)
+          as next_open_ts
+      from analytics_events
+      where event_type = 'open' and device_id is not null and lat is not null and lon is not null
+    )
+    select
+      o.id, o.device_id, o.lat as from_lat, o.lon as from_lon, o.ts as scanned_at,
+      d.poi_id as directions_poi_id, p.name as destination_name,
+      p.lat as to_lat, p.lon as to_lon, d.ts as directions_at
+    from opens o
+    left join lateral (
+      select poi_id, created_at::timestamptz as ts
+      from analytics_events
+      where event_type = 'directions' and device_id = o.device_id and created_at::timestamptz >= o.ts
+        and (o.next_open_ts is null or created_at::timestamptz < o.next_open_ts)
+      order by created_at::timestamptz asc
+      limit 1
+    ) d on true
+    left join pois p on p.id = d.poi_id
+    order by o.ts desc
+    limit ${limit} offset ${offset}`);
+
+  return { visits: rows<VisitRow>(visits), total };
 }
 
 /**

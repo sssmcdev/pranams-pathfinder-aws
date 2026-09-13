@@ -1,21 +1,38 @@
 import "server-only";
 
+import { createHash, timingSafeEqual } from "node:crypto";
+import { eq } from "drizzle-orm";
 import { getIronSession, type IronSession, type SessionOptions } from "iron-session";
 import { cookies } from "next/headers";
 
+import { db } from "@/db";
+import { users } from "@/db/schema";
+import { verifyPassword } from "./password";
+
 /**
  * Replaces starlette's SessionMiddleware + the AdminAuth backend in
- * backend/app/admin.py. One admin credential, shared by /admin,
- * /analytics and /preview — signing in once grants all three, exactly as
- * the single `authenticated` session flag did before.
+ * backend/app/admin.py. Two tiers now, not one:
+ *   - "admin": the original single shared credential (env vars
+ *     ADMIN_USER/ADMIN_PASSWORD) — /admin, /analytics and /preview, same
+ *     as before.
+ *   - "analytics": a named login from the `users` table — /analytics
+ *     only. Added for stakeholders who should see the dashboard without
+ *     the ability to edit POIs or use /preview.
  *
  * iron-session encrypts the cookie rather than merely signing it, so
  * unlike the previous itsdangerous cookie its contents are opaque to the
  * client as well as tamper-proof.
  */
 
+export type Role = "admin" | "analytics";
+
 export interface SessionData {
   authenticated?: boolean;
+  role?: Role;
+  /** Only set for a `users`-table login, never for the env-var admin. */
+  userId?: string;
+  /** True blocks every route except /api/auth/change-password. */
+  mustChangePassword?: boolean;
 }
 
 const DEV_PASSWORD = "prasanthi2026";
@@ -79,13 +96,12 @@ export async function isAuthenticated(): Promise<boolean> {
 }
 
 /**
- * Constant-time-ish credential check. Node's timingSafeEqual needs equal
- * lengths, so compare digests rather than the raw strings — otherwise the
- * comparison leaks the password length.
+ * Constant-time-ish check against the single env-var admin credential.
+ * Node's timingSafeEqual needs equal lengths, so compare digests rather
+ * than the raw strings — otherwise the comparison leaks the password
+ * length.
  */
-export async function verifyCredentials(username: unknown, password: unknown): Promise<boolean> {
-  if (typeof username !== "string" || typeof password !== "string") return false;
-  const { createHash, timingSafeEqual } = await import("node:crypto");
+function verifyEnvAdminCredentials(username: string, password: string): boolean {
   const digest = (s: string) => createHash("sha256").update(s).digest();
   return (
     timingSafeEqual(digest(username), digest(ADMIN_USER)) &&
@@ -93,11 +109,62 @@ export async function verifyCredentials(username: unknown, password: unknown): P
   );
 }
 
+export interface AuthResult {
+  role: Role;
+  userId: string | null;
+  mustChangePassword: boolean;
+}
+
+/**
+ * Tries the `users` table first (by email), then falls back to the
+ * single env-var admin credential — so one login form serves both a
+ * named analytics account and the original shared admin login. Returns
+ * null on any failure; deliberately doesn't distinguish "no such user"
+ * from "wrong password" to anything outside this function.
+ */
+export async function authenticate(identifier: unknown, password: unknown): Promise<AuthResult | null> {
+  if (typeof identifier !== "string" || typeof password !== "string" || !password) return null;
+
+  const [user] = await db.select().from(users).where(eq(users.email, identifier.toLowerCase())).limit(1);
+  if (user) {
+    if (!(await verifyPassword(password, user.passwordHash))) return null;
+    return { role: user.role as Role, userId: user.id, mustChangePassword: user.mustChangePassword };
+  }
+
+  if (verifyEnvAdminCredentials(identifier, password)) {
+    return { role: "admin", userId: null, mustChangePassword: false };
+  }
+  return null;
+}
+
 /** 401 in the {"detail": ...} shape the Python API used. */
 export function unauthorized() {
   return Response.json({ detail: "Admin login required" }, { status: 401 });
 }
 
+/** True only once a flagged user has changed their password — used to
+ *  block every route except the change-password endpoint itself. */
+async function passwordChangeRequired(session: SessionData): Promise<boolean> {
+  return Boolean(session.authenticated && session.mustChangePassword);
+}
+
 export async function requireAdmin(): Promise<Response | null> {
-  return (await isAuthenticated()) ? null : unauthorized();
+  const session = await getSession();
+  if (await passwordChangeRequired(session)) return unauthorized();
+  return session.role === "admin" ? null : unauthorized();
+}
+
+/** Admins can see analytics too — this is a superset of requireAdmin,
+ *  not a separate track. */
+export async function requireAnalytics(): Promise<Response | null> {
+  const session = await getSession();
+  if (await passwordChangeRequired(session)) return unauthorized();
+  return session.role === "admin" || session.role === "analytics" ? null : unauthorized();
+}
+
+/** For /api/auth/change-password: any logged-in session, including one
+ *  still flagged mustChangePassword — that is exactly the case this
+ *  route exists to resolve. */
+export async function requireAnySession(): Promise<Response | null> {
+  return (await getSession()).authenticated ? null : unauthorized();
 }

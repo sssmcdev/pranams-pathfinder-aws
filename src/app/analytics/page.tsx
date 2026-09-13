@@ -13,6 +13,20 @@ interface Dashboard {
   top_searches: { query: string; count: number }[];
   categories: { category: string; label: string; count: number }[];
   map_points: { lat: number; lon: number }[];
+  scan_clusters: { lat: number; lon: number; count: number }[];
+}
+
+interface VisitRow {
+  id: string;
+  device_id: string;
+  scanned_at: string;
+  from_lat: number;
+  from_lon: number;
+  directions_poi_id: string | null;
+  destination_name: string | null;
+  to_lat: number | null;
+  to_lon: number | null;
+  directions_at: string | null;
 }
 
 const RANGES = [
@@ -24,6 +38,7 @@ const RANGES = [
 ] as const;
 
 const GRANULARITIES = [
+  ["hour", "Hour"],
   ["day", "Day"],
   ["week", "Week"],
   ["month", "Month"],
@@ -54,6 +69,25 @@ function Segmented<T extends string>({
       ))}
     </div>
   );
+}
+
+function mapLink(lat: number, lon: number): string {
+  return `https://www.google.com/maps?q=${lat},${lon}`;
+}
+
+function routeLink(fromLat: number, fromLon: number, toLat: number, toLon: number): string {
+  return `https://www.google.com/maps/dir/?api=1&origin=${fromLat},${fromLon}&destination=${toLat},${toLon}`;
+}
+
+function visitTime(iso: string): string {
+  return new Date(iso).toLocaleString("en-IN", {
+    timeZone: "Asia/Kolkata",
+    day: "numeric",
+    month: "short",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
 }
 
 function RankList({
@@ -87,10 +121,15 @@ function RankList({
 }
 
 export default function AnalyticsPage() {
-  const [authState, setAuthState] = useState<"checking" | "login" | "in">("checking");
+  const [authState, setAuthState] = useState<"checking" | "login" | "change-password" | "in">("checking");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState("");
+
+  const [newPassword, setNewPassword] = useState("");
+  const [newPasswordConfirm, setNewPasswordConfirm] = useState("");
+  const [changePasswordError, setChangePasswordError] = useState("");
+  const [changingPassword, setChangingPassword] = useState(false);
 
   const [range, setRange] = useState<(typeof RANGES)[number][0]>("30d");
   const [granularity, setGranularity] = useState<(typeof GRANULARITIES)[number][0]>("day");
@@ -99,12 +138,17 @@ export default function AnalyticsPage() {
   const [loading, setLoading] = useState(false);
   const [showTable, setShowTable] = useState<Record<string, boolean>>({});
 
+  const [visits, setVisits] = useState<VisitRow[]>([]);
+  const [visitsTotal, setVisitsTotal] = useState(0);
+  const [visitsPage, setVisitsPage] = useState(0);
+  const [visitsLoading, setVisitsLoading] = useState(false);
+
   useEffect(() => {
     (async () => {
       try {
         const res = await fetch("/api/auth/session");
-        const { authenticated } = await res.json();
-        setAuthState(authenticated ? "in" : "login");
+        const { authenticated, must_change_password } = await res.json();
+        setAuthState(!authenticated ? "login" : must_change_password ? "change-password" : "in");
       } catch {
         setAuthState("login");
       }
@@ -132,10 +176,25 @@ export default function AnalyticsPage() {
     setDevices(body.devices ?? []);
   }, []);
 
+  const loadVisits = useCallback(async (page: number) => {
+    setVisitsLoading(true);
+    try {
+      const res = await fetch(`/api/analytics/visits?page=${page}`);
+      if (res.status === 401) return;
+      const body = await res.json();
+      setVisits(body.visits ?? []);
+      setVisitsTotal(body.total ?? 0);
+    } finally {
+      setVisitsLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (authState !== "in") return;
     void loadDashboard();
     void loadDevices();
+    void loadVisits(0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authState, loadDashboard, loadDevices]);
 
   if (authState !== "in") {
@@ -143,6 +202,55 @@ export default function AnalyticsPage() {
       <div className="auth-gate">
         {authState === "checking" ? (
           <p className="muted">Checking session…</p>
+        ) : authState === "change-password" ? (
+          <form
+            className="login-form"
+            onSubmit={async (e) => {
+              e.preventDefault();
+              setChangePasswordError("");
+              if (newPassword !== newPasswordConfirm) {
+                setChangePasswordError("Passwords don't match.");
+                return;
+              }
+              setChangingPassword(true);
+              try {
+                const res = await fetch("/api/auth/change-password", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ new_password: newPassword }),
+                });
+                if (res.ok) {
+                  setAuthState("in");
+                } else {
+                  const body = await res.json().catch(() => ({}));
+                  setChangePasswordError(body.detail ?? "Couldn't change password.");
+                }
+              } finally {
+                setChangingPassword(false);
+              }
+            }}
+          >
+            <h1>Prasanthi Path&nbsp;Finder Analytics</h1>
+            <p className="muted">This is your first sign-in — choose a new password to continue.</p>
+            <input
+              type="password"
+              placeholder="New password"
+              autoComplete="new-password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+            />
+            <input
+              type="password"
+              placeholder="Confirm new password"
+              autoComplete="new-password"
+              value={newPasswordConfirm}
+              onChange={(e) => setNewPasswordConfirm(e.target.value)}
+            />
+            {changePasswordError && <p className="login-error">{changePasswordError}</p>}
+            <button type="submit" className="btn-primary" disabled={changingPassword}>
+              Set password
+            </button>
+          </form>
         ) : (
           <form
             className="login-form"
@@ -154,12 +262,16 @@ export default function AnalyticsPage() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ username, password }),
               });
-              if (res.ok) setAuthState("in");
-              else setLoginError("Invalid credentials.");
+              if (res.ok) {
+                const body = await res.json();
+                setAuthState(body.must_change_password ? "change-password" : "in");
+              } else {
+                setLoginError("Invalid credentials.");
+              }
             }}
           >
             <h1>Prasanthi Path&nbsp;Finder Analytics</h1>
-            <p className="muted">Admin sign-in required.</p>
+            <p className="muted">Sign-in required.</p>
             <input
               type="text"
               placeholder="Username"
@@ -312,10 +424,12 @@ export default function AnalyticsPage() {
 
       <div className="chart-card">
         <div className="chart-card-head">
-          <h2>Where the app is used</h2>
+          <h2>
+            Where the app is used <span className="muted">(numbered markers: scans per cluster)</span>
+          </h2>
         </div>
         {data?.map_points.length ? (
-          <UsageHeatmap points={data.map_points} />
+          <UsageHeatmap points={data.map_points} clusters={data.scan_clusters} />
         ) : (
           <p className="empty-state">No location data in this range yet.</p>
         )}
@@ -334,6 +448,85 @@ export default function AnalyticsPage() {
           <DevicesMap devices={devices} />
         ) : (
           <p className="empty-state">No devices with a recent location in the last hour.</p>
+        )}
+      </div>
+
+      <div className={`chart-card${visitsLoading ? " loading" : ""}`}>
+        <div className="chart-card-head">
+          <h2>Scans &amp; directions requested</h2>
+        </div>
+        {!visits.length ? (
+          <p className="empty-state">No scans logged yet.</p>
+        ) : (
+          <>
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Time</th>
+                    <th>Device</th>
+                    <th>Scan location</th>
+                    <th>Directions requested to</th>
+                    <th>Route</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {visits.map((v) => (
+                    <tr key={v.id}>
+                      <td>{visitTime(v.scanned_at)}</td>
+                      <td>{v.device_id.slice(0, 8)}&hellip;</td>
+                      <td>
+                        <a href={mapLink(v.from_lat, v.from_lon)} target="_blank" rel="noopener">
+                          View
+                        </a>
+                      </td>
+                      <td>{v.destination_name ?? "—"}</td>
+                      <td>
+                        {v.to_lat != null && v.to_lon != null ? (
+                          <a
+                            href={routeLink(v.from_lat, v.from_lon, v.to_lat, v.to_lon)}
+                            target="_blank"
+                            rel="noopener"
+                          >
+                            View route
+                          </a>
+                        ) : (
+                          "—"
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="visits-pager">
+              <button
+                className="table-toggle"
+                disabled={visitsPage === 0}
+                onClick={() => {
+                  const p = visitsPage - 1;
+                  setVisitsPage(p);
+                  void loadVisits(p);
+                }}
+              >
+                &larr; Newer
+              </button>
+              <span className="muted">
+                {visitsPage * 25 + 1}&ndash;{Math.min((visitsPage + 1) * 25, visitsTotal)} of {visitsTotal}
+              </span>
+              <button
+                className="table-toggle"
+                disabled={(visitsPage + 1) * 25 >= visitsTotal}
+                onClick={() => {
+                  const p = visitsPage + 1;
+                  setVisitsPage(p);
+                  void loadVisits(p);
+                }}
+              >
+                Older &rarr;
+              </button>
+            </div>
+          </>
         )}
       </div>
     </div>
