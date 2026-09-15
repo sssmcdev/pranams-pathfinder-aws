@@ -165,12 +165,17 @@ export const deviceFlags = pgTable(
 );
 
 /**
- * An admin who can sign in to /admin, /analytics and /preview.
+ * Someone who can sign in. Two roles, which is the whole point of the
+ * table: "admin" reaches /admin, /analytics and /preview, while
+ * "analytics" reaches the dashboard and nothing else — added for
+ * stakeholders who should see the numbers without the ability to edit
+ * POIs or open /preview.
  *
  * The first table in this schema with no SQLAlchemy ancestor — the Python
  * app had a single credential pair in the environment and no user table
- * at all. That env pair still works as a break-glass account (see
- * lib/session.ts); these rows are the ordinary way in.
+ * at all. That env pair still works as a break-glass account and is
+ * always treated as "admin" (see lib/session.ts); these rows are the
+ * ordinary way in.
  *
  * Conventions are carried over from the tables above rather than
  * modernised, so this file stays internally consistent: varchar ISO-8601
@@ -185,7 +190,14 @@ export const adminUsers = pgTable(
     /** Always stored lowercased and trimmed, so lookups can compare directly. */
     email: varchar("email").notNull(),
     passwordHash: varchar("password_hash").notNull(),
-    /** Set when an admin is created or has their password reset by another
+    /**
+     * "admin" | "analytics". A plain varchar rather than a pg enum,
+     * matching how `gender` and `category` are stored above — the values
+     * are validated in lib/admin-users.ts, which is also where adding a
+     * third role would go.
+     */
+    role: varchar("role").notNull().$defaultFn(() => "admin"),
+    /** Set when an account is created or has its password reset by another
      *  admin; the sign-in flow blocks everything until they clear it. */
     mustChangePassword: boolean("must_change_password").notNull().$defaultFn(() => true),
     /** Deactivating keeps the audit trail that deleting would destroy. */

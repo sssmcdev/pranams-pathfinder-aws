@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-import { MIN_PASSWORD_LENGTH } from "@/lib/password-policy";
+import { MIN_PASSWORD_LENGTH, ROLE_LABELS, ROLES, type RoleName } from "@/lib/password-policy";
 import type { AdminUserPublic } from "@/lib/admin-users";
 
 /** ISO-8601 strings, as everything in this schema stores them. */
@@ -33,6 +33,7 @@ export function AdminUsersPanel({
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [role, setRole] = useState<RoleName>("analytics");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
@@ -64,7 +65,7 @@ export function AdminUsersPanel({
   return (
     <>
       <div className="card">
-        <h2 className="admin-subhead">Add an administrator</h2>
+        <h2 className="admin-subhead">Add someone</h2>
         <form
           onSubmit={async (e) => {
             e.preventDefault();
@@ -73,7 +74,7 @@ export function AdminUsersPanel({
               {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email, password }),
+                body: JSON.stringify({ email, password, role }),
               },
               `Added ${email.trim().toLowerCase()}. Pass the password on to them — they must ` +
                 "change it the first time they sign in.",
@@ -81,6 +82,7 @@ export function AdminUsersPanel({
             if (ok) {
               setEmail("");
               setPassword("");
+              setRole("analytics");
             }
           }}
         >
@@ -96,6 +98,20 @@ export function AdminUsersPanel({
                 required
               />
               <span className="hint">This is what they sign in with.</span>
+            </div>
+            <div className="field">
+              <label>Access</label>
+              <select value={role} onChange={(e) => setRole(e.target.value as RoleName)}>
+                {ROLES.map((r) => (
+                  <option key={r} value={r}>
+                    {ROLE_LABELS[r]}
+                  </option>
+                ))}
+              </select>
+              <span className="hint">
+                Analytics only sees the dashboard. Administrators can also edit places,
+                photos and other administrators.
+              </span>
             </div>
             <div className="field">
               <label>Temporary password</label>
@@ -115,7 +131,7 @@ export function AdminUsersPanel({
           </div>
           <div className="form-actions">
             <button type="submit" className="btn btn-primary" disabled={busy}>
-              Add administrator
+              Add account
             </button>
           </div>
         </form>
@@ -129,6 +145,7 @@ export function AdminUsersPanel({
           <thead>
             <tr>
               <th>Email</th>
+              <th>Access</th>
               <th>Status</th>
               <th>Added</th>
               <th>Last sign-in</th>
@@ -143,6 +160,29 @@ export function AdminUsersPanel({
                   <td className="wrap">
                     {a.email}
                     {isSelf && <span className="pill-tag" style={{ marginLeft: 8 }}>you</span>}
+                  </td>
+                  <td>
+                    <select
+                      value={a.role}
+                      disabled={busy}
+                      onChange={(e) =>
+                        call(
+                          `/api/admin/admins/${a.id}`,
+                          {
+                            method: "PUT",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ role: e.target.value }),
+                          },
+                          `${a.email} is now ${ROLE_LABELS[e.target.value as RoleName]}.`,
+                        )
+                      }
+                    >
+                      {ROLES.map((r) => (
+                        <option key={r} value={r}>
+                          {ROLE_LABELS[r]}
+                        </option>
+                      ))}
+                    </select>
                   </td>
                   <td>
                     {!a.active ? (
@@ -227,8 +267,7 @@ export function AdminUsersPanel({
         </table>
         {rows.length === 0 && (
           <p className="admin-empty">
-            No administrator accounts yet — you are signed in with the environment account.
-            Add one above.
+            No accounts yet — you are signed in with the environment account. Add one above.
           </p>
         )}
       </div>

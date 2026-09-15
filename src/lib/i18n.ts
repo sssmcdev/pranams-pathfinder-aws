@@ -30,9 +30,9 @@ export const UI_STRINGS = {
   closed: { en: "Closed", te: "మూసివేయబడింది", hi: "बंद किया हुआ" },
   choose_entrance: { en: "Choose a facility", te: "సదుపాయాన్ని ఎంచుకోండి", hi: "एक सुविधा चुनें" },
   open_in_maps: {
-    en: "Open in Google Maps",
-    te: "Google Mapsలో తెరవండి",
-    hi: "Google मानचित्र में खोलें",
+    en: "Open in Google Maps for Directions",
+    te: "దిశల కోసం Google Mapsలో తెరవండి",
+    hi: "दिशा-निर्देशों के लिए Google Maps में खोलें",
   },
   give_feedback: { en: "Give feedback", te: "అభిప్రాయం తెలియజేయండి", hi: "प्रतिक्रिया दें" },
   feedback_title: { en: "Feedback", te: "అభిప్రాయం", hi: "प्रतिक्रिया" },

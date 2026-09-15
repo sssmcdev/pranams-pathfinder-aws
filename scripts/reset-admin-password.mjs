@@ -10,7 +10,12 @@
  *
  *   node scripts/reset-admin-password.mjs list
  *   node scripts/reset-admin-password.mjs reset <email> [password]
- *   node scripts/reset-admin-password.mjs add   <email> [password]
+ *   node scripts/reset-admin-password.mjs add   <email> [password] [role]
+ *   node scripts/reset-admin-password.mjs role  <email> <role>
+ *
+ * role is "admin" or "analytics", defaulting to admin — this script is
+ * the break-glass path, and the account it creates is usually the one
+ * that has to get back into /admin.
  *
  * With no password given, one is generated and printed. Either way the
  * account is flagged so the holder must replace it at next sign-in.
@@ -77,9 +82,11 @@ async function main() {
     process.exit(1);
   }
 
-  const [command, emailArg, passwordArg] = process.argv.slice(2);
-  if (!command || !["list", "reset", "add"].includes(command)) {
-    console.error("Usage: node scripts/reset-admin-password.mjs list|reset|add [email] [password]");
+  const [command, emailArg, passwordArg, roleArg] = process.argv.slice(2);
+  if (!command || !["list", "reset", "add", "role"].includes(command)) {
+    console.error(
+      "Usage: node scripts/reset-admin-password.mjs list|reset|add|role [email] [password] [role]",
+    );
     process.exit(1);
   }
 
@@ -87,15 +94,17 @@ async function main() {
   try {
     if (command === "list") {
       const rows = await sql`
-        SELECT email, active, must_change_password, created_at, last_login_at
-        FROM admin_users ORDER BY email`;
+        SELECT email, role, active, must_change_password, created_at, last_login_at
+        FROM admin_users ORDER BY role, email`;
       if (rows.length === 0) {
         console.log("No admin accounts. Sign in with ADMIN_USER/ADMIN_PASSWORD and add one,");
         console.log("or run: node scripts/reset-admin-password.mjs add <email>");
       }
       for (const r of rows) {
         const state = !r.active ? "deactivated" : r.must_change_password ? "must set password" : "active";
-        console.log(`${r.email.padEnd(36)} ${state.padEnd(18)} last sign-in ${r.last_login_at ?? "never"}`);
+        console.log(
+          `${r.email.padEnd(34)} ${r.role.padEnd(10)} ${state.padEnd(18)} last sign-in ${r.last_login_at ?? "never"}`,
+        );
       }
       return;
     }
@@ -103,6 +112,28 @@ async function main() {
     const email = (emailArg ?? "").trim().toLowerCase();
     if (!email) {
       console.error(`${command} needs an email address.`);
+      process.exit(1);
+    }
+
+    if (command === "role") {
+      const role = (passwordArg ?? "").trim();
+      if (!["admin", "analytics"].includes(role)) {
+        console.error('role must be "admin" or "analytics".');
+        process.exit(1);
+      }
+      const rows = await sql`
+        UPDATE admin_users SET role = ${role} WHERE email = ${email} RETURNING email`;
+      if (rows.length === 0) {
+        console.error(`No account with email ${email}. Run "list" to see them.`);
+        process.exit(1);
+      }
+      console.log(`${email} is now ${role}`);
+      return;
+    }
+
+    const role = (roleArg ?? "admin").trim();
+    if (!["admin", "analytics"].includes(role)) {
+      console.error('role must be "admin" or "analytics".');
       process.exit(1);
     }
 
@@ -116,19 +147,21 @@ async function main() {
     if (command === "add") {
       try {
         await sql`
-          INSERT INTO admin_users (id, email, password_hash, must_change_password, active, created_at)
-          VALUES (${randomUUID()}, ${email}, ${passwordHash}, true, true, ${new Date().toISOString()})`;
+          INSERT INTO admin_users
+            (id, email, password_hash, role, must_change_password, active, created_at)
+          VALUES
+            (${randomUUID()}, ${email}, ${passwordHash}, ${role}, true, true, ${new Date().toISOString()})`;
       } catch (err) {
         // The unique index on email. Worth naming, because "add" on an
         // existing account is the likeliest typo here and a raw driver
         // stack tells the reader nothing about what to do instead.
         if (err?.code === "23505") {
-          console.error(`${email} is already an admin. Use "reset" to give them a new password.`);
+          console.error(`${email} already has an account. Use "reset" to give them a new password.`);
           process.exit(1);
         }
         throw err;
       }
-      console.log(`Added ${email}`);
+      console.log(`Added ${email} as ${role}`);
     } else {
       const rows = await sql`
         UPDATE admin_users
@@ -136,7 +169,7 @@ async function main() {
         WHERE email = ${email}
         RETURNING email`;
       if (rows.length === 0) {
-        console.error(`No admin with email ${email}. Run "list" to see the accounts.`);
+        console.error(`No account with email ${email}. Run "list" to see them.`);
         process.exit(1);
       }
       console.log(`Reset ${email}`);

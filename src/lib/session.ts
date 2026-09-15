@@ -5,30 +5,41 @@ import { cookies } from "next/headers";
 
 /**
  * Replaces starlette's SessionMiddleware + the AdminAuth backend in
- * backend/app/admin.py. Signing in once grants /admin, /analytics and
- * /preview alike, exactly as the single `authenticated` session flag did
- * before — there are no per-area permissions.
+ * backend/app/admin.py. Two tiers, not one:
  *
- * Accounts now live in the admin_users table (see lib/admin-users.ts).
- * The ADMIN_USER / ADMIN_PASSWORD pair below is kept as a break-glass
- * account: it is how the first admin row gets created on a fresh
- * database, and how you get back in if every stored password is lost.
+ *   - "admin": /admin, /analytics and /preview — everything.
+ *   - "analytics": the dashboard and nothing else. For stakeholders who
+ *     should see the numbers without the ability to edit POIs or open
+ *     /preview.
+ *
+ * Accounts live in the admin_users table (see lib/admin-users.ts). The
+ * ADMIN_USER / ADMIN_PASSWORD pair below is kept as a break-glass
+ * account, always treated as "admin": it is how the first row gets
+ * created on a fresh database, and how you get back in if every stored
+ * password is lost.
  *
  * iron-session encrypts the cookie rather than merely signing it, so
  * unlike the previous itsdangerous cookie its contents are opaque to the
  * client as well as tamper-proof.
  */
 
+export type Role = "admin" | "analytics";
+
 export interface SessionData {
   authenticated?: boolean;
   /**
-   * The signed-in admin's email, or null/undefined for the env
+   * The signed-in person's email, or null/undefined for the env
    * break-glass account, which has no row and therefore no email. Code
    * that needs an identity must handle that absence rather than assume
-   * one — `authenticated` remains the only thing the guards check.
+   * one — `authenticated` remains the only thing the cookie asserts.
    *
    * Sessions issued before this field existed decrypt fine and simply
    * lack it, which is the same as the break-glass case.
+   *
+   * Note what is NOT stored here: the role, and whether a password change
+   * is outstanding. Both are read from the row on each check, so changing
+   * someone's role or resetting their password takes effect on their next
+   * request instead of waiting for them to sign out.
    */
   email?: string | null;
 }
@@ -94,7 +105,7 @@ export async function isAuthenticated(): Promise<boolean> {
 }
 
 /**
- * The signed-in admin's email, or null when the session belongs to the
+ * The signed-in person's email, or null when the session belongs to the
  * env break-glass account (or predates emails entirely). Never throws for
  * a signed-out visitor — callers gate on isAuthenticated first.
  */
@@ -105,7 +116,7 @@ export async function currentAdminEmail(): Promise<string | null> {
 
 /**
  * The env break-glass credential check, not the ordinary one — stored
- * admin accounts are verified by authenticateAdmin in lib/admin-users.ts.
+ * accounts are verified by authenticateAdmin in lib/admin-users.ts.
  *
  * Constant-time-ish. Node's timingSafeEqual needs equal lengths, so
  * compare digests rather than the raw strings — otherwise the comparison
@@ -127,67 +138,84 @@ export function unauthorized() {
 }
 
 /**
- * Whether the current session may act as an admin, and if not, why.
+ * Who the current session is, and whether it may act yet.
  *
- * Three things fail, and they are deliberately decided in one place
- * rather than duplicated across routes and pages:
+ * Everything that can disqualify a session is decided here rather than
+ * duplicated across routes and pages:
  *
- *   - "anonymous": no session at all;
- *   - "anonymous": a session for an account since deactivated or deleted,
- *     which is how removing an admin ends the sessions they already hold;
- *   - "must-change-password": the account is still flagged. The flag means
- *     the password is known to whoever set it, so it is not yet proof of
- *     identity.
+ *   - "anonymous": no session, or a session for an account since
+ *     deactivated or deleted — which is how removing someone ends the
+ *     sessions they already hold;
+ *   - "must-change-password": the account is still flagged. The flag
+ *     means the password is known to whoever set it, so it is not yet
+ *     proof of identity;
+ *   - "ok", with the role the row currently carries.
  *
- * The env break-glass account has no row, so it is simply "ok".
+ * The env break-glass account has no row, so it is "ok" as an admin.
  *
  * admin-users is imported lazily so that merely importing this module
  * does not drag the database client in with it.
  */
-export type AdminStatus = "ok" | "anonymous" | "must-change-password";
+export type Access =
+  | { status: "anonymous" }
+  | { status: "must-change-password"; role: Role }
+  | { status: "ok"; role: Role };
 
-export async function adminStatus(): Promise<AdminStatus> {
+export async function access(): Promise<Access> {
   const session = await getSession();
-  if (!session.authenticated) return "anonymous";
+  if (!session.authenticated) return { status: "anonymous" };
 
   const email = session.email;
-  if (!email) return "ok";
+  if (!email) return { status: "ok", role: "admin" };
 
   const { getAdminByEmail } = await import("./admin-users");
   const admin = await getAdminByEmail(email);
-  if (!admin || !admin.active) return "anonymous";
-  return admin.mustChangePassword ? "must-change-password" : "ok";
+  if (!admin || !admin.active) return { status: "anonymous" };
+
+  const role = admin.role as Role;
+  return admin.mustChangePassword
+    ? { status: "must-change-password", role }
+    : { status: "ok", role };
 }
 
+function forbidden(detail: string) {
+  return Response.json({ detail }, { status: 403 });
+}
+
+const MUST_CHANGE = "Set your own password before using the panel";
+
 /**
- * The gate for every admin and analytics endpoint — adminRoute wraps it,
- * and the analytics routes call it directly. A flagged account is refused
- * here so the forced password change cannot be skipped by calling the API
- * directly; AdminShell shows the change screen long before this is
- * reachable in a browser.
+ * The gate for every /admin endpoint — adminRoute wraps it. A flagged
+ * account is refused here so the forced password change cannot be skipped
+ * by calling the API directly, and an analytics-only account is refused
+ * because /admin is not theirs to reach.
  *
  * /api/auth/password does NOT go through here — it is the one endpoint a
  * flagged account has to be able to reach.
  */
 export async function requireAdmin(): Promise<Response | null> {
-  switch (await adminStatus()) {
-    case "ok":
-      return null;
-    case "must-change-password":
-      return Response.json(
-        { detail: "Set your own password before using the admin panel" },
-        { status: 403 },
-      );
-    default:
-      return unauthorized();
-  }
+  const a = await access();
+  if (a.status === "anonymous") return unauthorized();
+  if (a.status === "must-change-password") return forbidden(MUST_CHANGE);
+  return a.role === "admin" ? null : forbidden("Administrator access required");
+}
+
+/** The dashboard is visible to both roles — a superset of requireAdmin,
+ *  not a separate track. */
+export async function requireAnalytics(): Promise<Response | null> {
+  const a = await access();
+  if (a.status === "anonymous") return unauthorized();
+  if (a.status === "must-change-password") return forbidden(MUST_CHANGE);
+  return null;
 }
 
 /**
- * The server-component equivalent, used by the /admin pages so a flagged
- * or revoked session never has admin data rendered into its HTML — the
- * pages return null and AdminShell paints the right screen over the top.
+ * The server-component equivalent of requireAdmin, used by the /admin
+ * pages so a flagged, revoked or analytics-only session never has admin
+ * data rendered into its HTML — the pages return null and AdminShell
+ * paints the right screen over the top.
  */
 export async function adminPageAllowed(): Promise<boolean> {
-  return (await adminStatus()) === "ok";
+  const a = await access();
+  return a.status === "ok" && a.role === "admin";
 }

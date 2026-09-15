@@ -19,6 +19,7 @@ const NAV = [
 interface SessionInfo {
   authenticated: boolean;
   email: string | null;
+  role: "admin" | "analytics" | null;
   mustChangePassword: boolean;
 }
 
@@ -27,18 +28,30 @@ interface SessionInfo {
 export function AdminShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const [state, setState] = useState<"checking" | "login" | "in">("checking");
+  const [state, setState] = useState<"checking" | "login" | "denied" | "in">("checking");
   const [session, setSession] = useState<SessionInfo | null>(null);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
+  /**
+   * /admin is administrators-only. A valid session that is not role
+   * "admin" — one of the analytics-only logins — must not see this panel
+   * merely because `authenticated` is true, so it gets "denied" and a
+   * pointer to the dashboard instead.
+   *
+   * A flagged administrator stays "in" and is shown the password form
+   * below rather than being denied: they do have access, they just have
+   * to finish setting it up.
+   */
   const loadSession = useCallback(async () => {
     try {
       const res = await fetch("/api/auth/session");
       const info: SessionInfo = await res.json();
       setSession(info);
-      setState(info.authenticated ? "in" : "login");
+      if (!info.authenticated) setState("login");
+      else if (info.role !== "admin") setState("denied");
+      else setState("in");
     } catch {
       setSession(null);
       setState("login");
@@ -57,6 +70,29 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
     );
   }
 
+  if (state === "denied") {
+    return (
+      <div className="admin-login">
+        <h1>Prasanthi Path&nbsp;Finder Admin</h1>
+        <p className="muted">
+          This account doesn&apos;t have access to the admin panel. It can open the{" "}
+          <Link href="/analytics">analytics dashboard</Link>.
+        </p>
+        <button
+          type="button"
+          className="btn btn-primary"
+          onClick={async () => {
+            await fetch("/api/auth/logout", { method: "POST" });
+            setSession(null);
+            setState("login");
+          }}
+        >
+          Sign out
+        </button>
+      </div>
+    );
+  }
+
   if (state === "login") {
     return (
       <div className="admin-login">
@@ -70,9 +106,9 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
               body: JSON.stringify({ username, password }),
             });
             // Re-read the session rather than trusting the login response:
-            // it is the one place mustChangePassword is derived from the
-            // row, so the forced-change screen cannot be skipped by a
-            // stale client.
+            // it is the one place the role and mustChangePassword are
+            // derived from the row, so neither the denied screen nor the
+            // forced-change screen can be skipped by a stale client.
             if (res.ok) await loadSession();
             else setError("Invalid credentials.");
           }}

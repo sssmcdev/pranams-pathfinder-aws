@@ -1,16 +1,16 @@
 import "server-only";
 
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import { adminUsers, type AdminUser } from "@/db/schema";
 import { ValidationError } from "./admin-service";
 import { hashPassword, needsRehash, verifyPassword } from "./password";
-import { MIN_PASSWORD_LENGTH } from "./password-policy";
+import { MIN_PASSWORD_LENGTH, ROLES, ROLE_LABELS, type RoleName } from "./password-policy";
 
 /**
- * The admin account list behind /admin/admins, and the lookups the login
- * flow uses.
+ * The account list behind /admin/admins, and the lookups the login flow
+ * uses.
  *
  * Every query here runs sequentially and is never fired concurrently with
  * another — see the max:1 note in db/index.ts, where pipelining against
@@ -23,6 +23,19 @@ import { MIN_PASSWORD_LENGTH } from "./password-policy";
 const EMAIL_RE = /^[^\s@]+@[^\s@.]+\.[^\s@]+$/;
 
 export { MIN_PASSWORD_LENGTH };
+
+export { ROLES, ROLE_LABELS };
+export type { RoleName };
+
+/** "admin" unless told otherwise — the safe reading of an absent field
+ *  here is the one that matches how every existing row was created. */
+export function validateRole(value: unknown): RoleName {
+  if (value === undefined || value === null || value === "") return "admin";
+  if (typeof value !== "string" || !ROLES.includes(value as RoleName)) {
+    throw new ValidationError(`Role must be one of: ${ROLES.join(", ")}`);
+  }
+  return value as RoleName;
+}
 
 export function normalizeEmail(value: unknown): string {
   if (typeof value !== "string") throw new ValidationError("Email is required");
@@ -66,8 +79,16 @@ async function findByEmail(email: string): Promise<AdminUser | undefined> {
   return row;
 }
 
-export async function countActiveAdmins(): Promise<number> {
-  const rows = await db.select({ id: adminUsers.id }).from(adminUsers).where(eq(adminUsers.active, true));
+/**
+ * Active accounts that can actually administer — an analytics-only login
+ * cannot add anyone back, so it must not satisfy the "don't lock yourself
+ * out" guards below.
+ */
+export async function countActiveAdministrators(): Promise<number> {
+  const rows = await db
+    .select({ id: adminUsers.id })
+    .from(adminUsers)
+    .where(and(eq(adminUsers.active, true), eq(adminUsers.role, "admin")));
   return rows.length;
 }
 
@@ -118,8 +139,9 @@ export async function getAdminByEmail(email: string): Promise<AdminUserPublic | 
 export async function createAdmin(input: Record<string, unknown>): Promise<AdminUserPublic> {
   const email = normalizeEmail(input.email);
   const password = validatePassword(input.password);
+  const role = validateRole(input.role);
 
-  if (await findByEmail(email)) throw new ValidationError("That email is already an admin");
+  if (await findByEmail(email)) throw new ValidationError("That email already has an account");
 
   const [row] = await db
     .insert(adminUsers)
@@ -127,6 +149,7 @@ export async function createAdmin(input: Record<string, unknown>): Promise<Admin
       id: crypto.randomUUID(),
       email,
       passwordHash: await hashPassword(password),
+      role,
       // Whoever creates the account knows the password they typed, so it
       // is shared knowledge until the new admin replaces it.
       mustChangePassword: true,
@@ -139,8 +162,39 @@ export async function createAdmin(input: Record<string, unknown>): Promise<Admin
 
 async function requireById(id: string): Promise<AdminUser> {
   const [row] = await db.select().from(adminUsers).where(eq(adminUsers.id, id)).limit(1);
-  if (!row) throw new ValidationError("Admin not found");
+  if (!row) throw new ValidationError("Account not found");
   return row;
+}
+
+/**
+ * Changing a role has the same lockout risk as deactivating: demoting the
+ * only administrator would leave the panel with nobody who can administer
+ * it. Analytics-only accounts do not count towards that, which is the
+ * whole reason the guard cannot just count rows.
+ */
+export async function setAdminRole(
+  id: string,
+  roleInput: unknown,
+  actorEmail: string | null,
+): Promise<AdminUserPublic> {
+  const row = await requireById(id);
+  const role = validateRole(roleInput);
+
+  if (role !== "admin" && row.role === "admin") {
+    if (actorEmail && row.email === actorEmail) {
+      throw new ValidationError("You cannot remove your own administrator access");
+    }
+    if (row.active && (await countActiveAdministrators()) <= 1) {
+      throw new ValidationError("This is the last administrator — promote another first");
+    }
+  }
+
+  const [updated] = await db
+    .update(adminUsers)
+    .set({ role })
+    .where(eq(adminUsers.id, row.id))
+    .returning();
+  return toPublic(updated);
 }
 
 /**
@@ -179,8 +233,8 @@ export async function setAdminActive(
     if (actorEmail && row.email === actorEmail) {
       throw new ValidationError("You cannot deactivate your own account");
     }
-    if (row.active && (await countActiveAdmins()) <= 1) {
-      throw new ValidationError("This is the last active admin — add another first");
+    if (row.active && row.role === "admin" && (await countActiveAdministrators()) <= 1) {
+      throw new ValidationError("This is the last administrator — add another first");
     }
   }
 
@@ -197,8 +251,8 @@ export async function deleteAdmin(id: string, actorEmail: string | null): Promis
   if (actorEmail && row.email === actorEmail) {
     throw new ValidationError("You cannot delete your own account");
   }
-  if (row.active && (await countActiveAdmins()) <= 1) {
-    throw new ValidationError("This is the last active admin — add another first");
+  if (row.active && row.role === "admin" && (await countActiveAdministrators()) <= 1) {
+    throw new ValidationError("This is the last administrator — add another first");
   }
   await db.delete(adminUsers).where(eq(adminUsers.id, row.id));
 }
@@ -216,7 +270,7 @@ export async function changeOwnPassword(
   newPassword: unknown,
 ): Promise<void> {
   const row = await findByEmail(email.trim().toLowerCase());
-  if (!row) throw new ValidationError("Admin not found");
+  if (!row) throw new ValidationError("Account not found");
 
   if (typeof currentPassword !== "string" || !(await verifyPassword(currentPassword, row.passwordHash))) {
     throw new ValidationError("Your current password is not correct");

@@ -122,6 +122,12 @@ table.admin-table td.wrap { max-width: 320px; overflow-wrap: anywhere; }
 /* Wraps rather than widening the column, so the table still fits a phone. */
 .admin-row-actions { display: flex; flex-wrap: wrap; gap: 6px; }
 .admin-row-actions .btn { padding: 6px 10px; font-size: 12px; }
+/* The role picker sits inside a table cell, so it borrows the field
+   styling at a size that does not stretch the row. */
+table.admin-table td select {
+  font: 400 12.5px/1.4 var(--font-body); color: var(--ink); background: var(--paper);
+  border: 1px solid var(--line); border-radius: 8px; padding: 5px 7px; max-width: 100%;
+}
 /* Sits under Sign out, so it reads as "…as this person" without a label. */
 .admin-whoami { font: 400 11px/1.4 var(--font-body); color: var(--ink-soft);
   margin: 10px 2px 0; overflow-wrap: anywhere; }
