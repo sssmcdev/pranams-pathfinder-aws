@@ -1,13 +1,13 @@
 import { notFound } from "next/navigation";
 
 import { getPoiAdmin } from "@/lib/admin-service";
-import { isAuthenticated } from "@/lib/session";
+import { adminPageAllowed } from "@/lib/session";
 import { PoiForm } from "@/components/admin/PoiForm";
 
 export const dynamic = "force-dynamic";
 
 export default async function EditPoiPage({ params }: { params: Promise<{ id: string }> }) {
-  if (!(await isAuthenticated())) return null;
+  if (!(await adminPageAllowed())) return null;
   const poi = await getPoiAdmin((await params).id);
   if (!poi) notFound();
 

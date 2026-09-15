@@ -1,12 +1,12 @@
 import { listFeedbackAdmin } from "@/lib/admin-service";
-import { isAuthenticated } from "@/lib/session";
+import { adminPageAllowed } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
 const stars = (n: number) => "★".repeat(n) + "☆".repeat(5 - n);
 
 export default async function FeedbackPage() {
-  if (!(await isAuthenticated())) return null;
+  if (!(await adminPageAllowed())) return null;
   const rows = await listFeedbackAdmin();
   const avg = (pick: (r: (typeof rows)[number]) => number) =>
     rows.length ? (rows.reduce((s, r) => s + pick(r), 0) / rows.length).toFixed(1) : "—";

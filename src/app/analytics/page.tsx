@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import "./analytics.css";
 import { bucketLabel, CategoryChart, HitsChart } from "@/components/analytics/charts";
+import { MIN_PASSWORD_LENGTH } from "@/lib/password-policy";
 import { DevicesMap, UsageHeatmap, type ActiveDevice } from "@/components/analytics/maps";
 
 interface Dashboard {
@@ -121,11 +122,14 @@ function RankList({
 }
 
 export default function AnalyticsPage() {
-  const [authState, setAuthState] = useState<"checking" | "login" | "change-password" | "in">("checking");
+  const [authState, setAuthState] = useState<
+    "checking" | "login" | "must-change-password" | "in"
+  >("checking");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState("");
 
+  const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [newPasswordConfirm, setNewPasswordConfirm] = useState("");
   const [changePasswordError, setChangePasswordError] = useState("");
@@ -147,8 +151,10 @@ export default function AnalyticsPage() {
     (async () => {
       try {
         const res = await fetch("/api/auth/session");
-        const { authenticated, must_change_password } = await res.json();
-        setAuthState(!authenticated ? "login" : must_change_password ? "change-password" : "in");
+        const { authenticated, mustChangePassword } = await res.json();
+        setAuthState(
+          !authenticated ? "login" : mustChangePassword ? "must-change-password" : "in",
+        );
       } catch {
         setAuthState("login");
       }
@@ -163,6 +169,12 @@ export default function AnalyticsPage() {
         setAuthState("login");
         return;
       }
+      // 403 is the account that still has to choose its own password;
+      // without this the {detail: …} body would be read as a dashboard.
+      if (res.status === 403) {
+        setAuthState("must-change-password");
+        return;
+      }
       setData(await res.json());
     } finally {
       setLoading(false);
@@ -171,7 +183,7 @@ export default function AnalyticsPage() {
 
   const loadDevices = useCallback(async () => {
     const res = await fetch("/api/analytics/devices");
-    if (res.status === 401) return;
+    if (res.status === 401 || res.status === 403) return;
     const body = await res.json();
     setDevices(body.devices ?? []);
   }, []);
@@ -202,24 +214,39 @@ export default function AnalyticsPage() {
       <div className="auth-gate">
         {authState === "checking" ? (
           <p className="muted">Checking session…</p>
-        ) : authState === "change-password" ? (
+        ) : authState === "must-change-password" ? (
+          /*
+           * An analytics-only account cannot reach /admin/password — that
+           * page is administrators-only — so the change has to be possible
+           * from here. Same endpoint and same rules as /admin/password,
+           * including the current password, which is required even under a
+           * forced change: the session alone must not be enough to set a
+           * new one, or an unattended signed-in browser becomes an account
+           * takeover.
+           */
           <form
             className="login-form"
             onSubmit={async (e) => {
               e.preventDefault();
               setChangePasswordError("");
               if (newPassword !== newPasswordConfirm) {
-                setChangePasswordError("Passwords don't match.");
+                setChangePasswordError("The two new passwords do not match.");
                 return;
               }
               setChangingPassword(true);
               try {
-                const res = await fetch("/api/auth/change-password", {
+                const res = await fetch("/api/auth/password", {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ new_password: newPassword }),
+                  body: JSON.stringify({
+                    currentPassword,
+                    newPassword,
+                  }),
                 });
                 if (res.ok) {
+                  setCurrentPassword("");
+                  setNewPassword("");
+                  setNewPasswordConfirm("");
                   setAuthState("in");
                 } else {
                   const body = await res.json().catch(() => ({}));
@@ -231,13 +258,24 @@ export default function AnalyticsPage() {
             }}
           >
             <h1>Prasanthi Path&nbsp;Finder Analytics</h1>
-            <p className="muted">This is your first sign-in — choose a new password to continue.</p>
+            <p className="muted">
+              Your password was set by someone else, so it is not private to you. Choose your
+              own to continue.
+            </p>
             <input
               type="password"
-              placeholder="New password"
+              placeholder="Current password"
+              autoComplete="current-password"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+            />
+            <input
+              type="password"
+              placeholder={`New password (at least ${MIN_PASSWORD_LENGTH} characters)`}
               autoComplete="new-password"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
+              minLength={MIN_PASSWORD_LENGTH}
             />
             <input
               type="password"
@@ -262,19 +300,16 @@ export default function AnalyticsPage() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ username, password }),
               });
-              if (res.ok) {
-                const body = await res.json();
-                setAuthState(body.must_change_password ? "change-password" : "in");
-              } else {
-                setLoginError("Invalid credentials.");
-              }
+              const body = await res.json().catch(() => ({}));
+              if (!res.ok) setLoginError("Invalid credentials.");
+              else setAuthState(body.mustChangePassword ? "must-change-password" : "in");
             }}
           >
             <h1>Prasanthi Path&nbsp;Finder Analytics</h1>
             <p className="muted">Sign-in required.</p>
             <input
               type="text"
-              placeholder="Username"
+              placeholder="Email"
               autoComplete="username"
               value={username}
               onChange={(e) => setUsername(e.target.value)}

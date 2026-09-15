@@ -20,7 +20,15 @@
  * fills the value in on insert from the app, exactly as Python did.
  */
 
-import { boolean, doublePrecision, index, integer, pgTable, varchar } from "drizzle-orm/pg-core";
+import {
+  boolean,
+  doublePrecision,
+  index,
+  integer,
+  pgTable,
+  uniqueIndex,
+  varchar,
+} from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
 export const pois = pgTable(
@@ -157,29 +165,48 @@ export const deviceFlags = pgTable(
 );
 
 /**
- * Named logins, additive to the single shared admin credential in
- * session.ts (env vars ADMIN_USER/ADMIN_PASSWORD) — that account still
- * works unchanged and is always role "admin". This table is for people
- * who should NOT have that account's full access, e.g. analytics-only
- * viewers. NOT a mirror of anything in the Python app — genuinely new,
- * so (unlike every other table above) this one needs an actual
- * `CREATE TABLE` migration, not just a Drizzle definition matching
- * something that already exists.
+ * Someone who can sign in. Two roles, which is the whole point of the
+ * table: "admin" reaches /admin, /analytics and /preview, while
+ * "analytics" reaches the dashboard and nothing else — added for
+ * stakeholders who should see the numbers without the ability to edit
+ * POIs or open /preview.
+ *
+ * The first table in this schema with no SQLAlchemy ancestor — the Python
+ * app had a single credential pair in the environment and no user table
+ * at all. That env pair still works as a break-glass account and is
+ * always treated as "admin" (see lib/session.ts); these rows are the
+ * ordinary way in.
+ *
+ * Conventions are carried over from the tables above rather than
+ * modernised, so this file stays internally consistent: varchar ISO-8601
+ * timestamps, and app-side defaults via $defaultFn with no server
+ * default. Passwords are never stored or accepted in plaintext — see
+ * hashPassword in lib/password.ts for the format of passwordHash.
  */
-export const users = pgTable("users", {
-  id: varchar("id").primaryKey(),
-  email: varchar("email").notNull().unique(),
-  passwordHash: varchar("password_hash").notNull(),
-  role: varchar("role").notNull(), // "admin" | "analytics" — see lib/session.ts
-  // True until they change it themselves via /api/auth/change-password.
-  // Enforced server-side: a session for a user with this still true can
-  // reach nothing except that one endpoint.
-  mustChangePassword: boolean("must_change_password").notNull().$defaultFn(() => true),
-  createdAt: varchar("created_at").notNull(),
-});
-
-export type User = typeof users.$inferSelect;
-export type NewUser = typeof users.$inferInsert;
+export const adminUsers = pgTable(
+  "admin_users",
+  {
+    id: varchar("id").primaryKey(),
+    /** Always stored lowercased and trimmed, so lookups can compare directly. */
+    email: varchar("email").notNull(),
+    passwordHash: varchar("password_hash").notNull(),
+    /**
+     * "admin" | "analytics". A plain varchar rather than a pg enum,
+     * matching how `gender` and `category` are stored above — the values
+     * are validated in lib/admin-users.ts, which is also where adding a
+     * third role would go.
+     */
+    role: varchar("role").notNull().$defaultFn(() => "admin"),
+    /** Set when an account is created or has its password reset by another
+     *  admin; the sign-in flow blocks everything until they clear it. */
+    mustChangePassword: boolean("must_change_password").notNull().$defaultFn(() => true),
+    /** Deactivating keeps the audit trail that deleting would destroy. */
+    active: boolean("active").notNull().$defaultFn(() => true),
+    createdAt: varchar("created_at").notNull(),
+    lastLoginAt: varchar("last_login_at"),
+  },
+  (t) => [uniqueIndex("ix_admin_users_email").on(t.email)],
+);
 
 export const poisRelations = relations(pois, ({ many }) => ({
   subPlaces: many(subPlaces),
@@ -201,3 +228,5 @@ export type AnalyticsEvent = typeof analyticsEvents.$inferSelect;
 export type NewAnalyticsEvent = typeof analyticsEvents.$inferInsert;
 export type DeviceFlag = typeof deviceFlags.$inferSelect;
 export type NewDeviceFlag = typeof deviceFlags.$inferInsert;
+export type AdminUser = typeof adminUsers.$inferSelect;
+export type NewAdminUser = typeof adminUsers.$inferInsert;

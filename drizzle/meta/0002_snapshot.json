@@ -1,6 +1,6 @@
 {
-  "id": "79e0671e-14f5-434c-b75f-be8dded39228",
-  "prevId": "b6c2c450-6cdc-4d00-913d-ff1e1509b273",
+  "id": "843185a2-96e9-4088-8085-1e8e8b6f889d",
+  "prevId": "79e0671e-14f5-434c-b75f-be8dded39228",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -22,6 +22,12 @@
         },
         "password_hash": {
           "name": "password_hash",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "role": {
+          "name": "role",
           "type": "varchar",
           "primaryKey": false,
           "notNull": true

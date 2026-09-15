@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+
+import { ChangePasswordForm } from "./ChangePasswordForm";
 
 const NAV = [
   { href: "/admin/pois", label: "Points of Interest", group: "Content" },
@@ -10,7 +12,16 @@ const NAV = [
   { href: "/admin/media", label: "Photo Library", group: "Content" },
   { href: "/admin/feedback", label: "Feedback", group: "Reports" },
   { href: "/admin/flags", label: "Flagged Activity", group: "Reports" },
+  { href: "/admin/admins", label: "Administrators", group: "Access" },
+  { href: "/admin/password", label: "Change Password", group: "Access" },
 ];
+
+interface SessionInfo {
+  authenticated: boolean;
+  email: string | null;
+  role: "admin" | "analytics" | null;
+  mustChangePassword: boolean;
+}
 
 /** Auth gate + chrome for every /admin page. Replaces sqladmin's
  *  AuthenticationBackend and its Tabler layout template. */
@@ -18,28 +29,38 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [state, setState] = useState<"checking" | "login" | "denied" | "in">("checking");
+  const [session, setSession] = useState<SessionInfo | null>(null);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
-  // /admin is admin-only — a valid session that isn't role "admin" (e.g. one
-  // of the analytics-only logins) must not see this panel just because
-  // `authenticated` is true.
-  const checkSession = async () => {
+  /**
+   * /admin is administrators-only. A valid session that is not role
+   * "admin" — one of the analytics-only logins — must not see this panel
+   * merely because `authenticated` is true, so it gets "denied" and a
+   * pointer to the dashboard instead.
+   *
+   * A flagged administrator stays "in" and is shown the password form
+   * below rather than being denied: they do have access, they just have
+   * to finish setting it up.
+   */
+  const loadSession = useCallback(async () => {
     try {
       const res = await fetch("/api/auth/session");
-      const { authenticated, role, must_change_password } = await res.json();
-      if (!authenticated) setState("login");
-      else if (role === "admin" && !must_change_password) setState("in");
-      else setState("denied");
+      const info: SessionInfo = await res.json();
+      setSession(info);
+      if (!info.authenticated) setState("login");
+      else if (info.role !== "admin") setState("denied");
+      else setState("in");
     } catch {
+      setSession(null);
       setState("login");
     }
-  };
+  }, []);
 
   useEffect(() => {
-    checkSession();
-  }, []);
+    void loadSession();
+  }, [loadSession]);
 
   if (state === "checking") {
     return (
@@ -54,13 +75,15 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
       <div className="admin-login">
         <h1>Prasanthi Path&nbsp;Finder Admin</h1>
         <p className="muted">
-          This account doesn&apos;t have access to the admin panel.
+          This account doesn&apos;t have access to the admin panel. It can open the{" "}
+          <Link href="/analytics">analytics dashboard</Link>.
         </p>
         <button
           type="button"
           className="btn btn-primary"
           onClick={async () => {
             await fetch("/api/auth/logout", { method: "POST" });
+            setSession(null);
             setState("login");
           }}
         >
@@ -82,14 +105,18 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ username, password }),
             });
-            if (res.ok) await checkSession();
+            // Re-read the session rather than trusting the login response:
+            // it is the one place the role and mustChangePassword are
+            // derived from the row, so neither the denied screen nor the
+            // forced-change screen can be skipped by a stale client.
+            if (res.ok) await loadSession();
             else setError("Invalid credentials.");
           }}
         >
           <h1>Prasanthi Path&nbsp;Finder Admin</h1>
           <input
             type="text"
-            placeholder="Username"
+            placeholder="Email"
             autoComplete="username"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
@@ -110,7 +137,34 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
     );
   }
 
-  const groups = [...new Set(NAV.map((n) => n.group))];
+  /**
+   * A flagged account gets this screen and nothing else — no sidebar, no
+   * children — until it clears. The server enforces the same thing for the
+   * data: every admin API call still goes through requireAdmin, so this
+   * screen is the usability half of the rule, not the security half.
+   */
+  if (session?.mustChangePassword && session.email) {
+    return (
+      <div className="admin">
+        <main className="admin-main">
+          <div className="admin-head">
+            <div>
+              <h1>Set your password</h1>
+              <p className="muted">One step before you can use the admin panel.</p>
+            </div>
+          </div>
+          <div className="card">
+            <ChangePasswordForm email={session.email} forced onDone={loadSession} />
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  // The env break-glass account has no stored password, so the page that
+  // changes one would only ever tell it so. Hide the link instead.
+  const nav = session?.email ? NAV : NAV.filter((n) => n.href !== "/admin/password");
+  const groups = [...new Set(nav.map((n) => n.group))];
 
   return (
     <div className="admin">
@@ -122,7 +176,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
         {groups.map((group) => (
           <div key={group}>
             <div className="admin-nav-sep">{group}</div>
-            {NAV.filter((n) => n.group === group).map((n) => (
+            {nav.filter((n) => n.group === group).map((n) => (
               <Link
                 key={n.href}
                 href={n.href}
@@ -146,12 +200,16 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           style={{ textAlign: "left", cursor: "pointer", background: "none" }}
           onClick={async () => {
             await fetch("/api/auth/logout", { method: "POST" });
+            setSession(null);
             setState("login");
             router.refresh();
           }}
         >
           Sign out
         </button>
+        <p className="admin-whoami">
+          {session?.email ?? "Environment admin account"}
+        </p>
       </aside>
       <main className="admin-main">{children}</main>
     </div>

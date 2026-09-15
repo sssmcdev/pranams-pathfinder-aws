@@ -1,14 +1,20 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { useLang } from "@/components/LangProvider";
 import { VisitorApp } from "@/components/VisitorApp";
 
 /**
  * /preview is a second entry point, off the home URL, for testing away
- * from the ashram: sign in with the admin credentials instead of proving
+ * from the ashram: sign in with any admin account instead of proving
  * location. It shares one session with /admin and /analytics.
+ *
+ * Unlike those two it does not hold an account still flagged
+ * mustChangePassword out: the visitor app below is read-only and shows
+ * nothing the person cannot already see by standing at the ashram, so
+ * making them set a password first would only obstruct the testing this
+ * route exists for.
  *
  * Analytics logging is disabled for everything below this gate — preview
  * traffic is admin and testing activity, not real visitors, and must
@@ -22,23 +28,38 @@ export function PreviewGate() {
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  // Admin only — an analytics-only login must not land here, since preview
-  // bypasses the location check /analytics has no reason to grant.
-  const checkSession = async () => {
+  /**
+   * Administrators only — an analytics-only login must not land here,
+   * since preview bypasses the location check that /analytics has no
+   * reason to grant. A flagged administrator is held out too: there is no
+   * password form on this route, so they are sent to set one first rather
+   * than given a second place to do it.
+   */
+  const [denyReason, setDenyReason] = useState<"role" | "password">("role");
+
+  const checkSession = useCallback(async () => {
     try {
       const res = await fetch("/api/auth/session");
-      const { authenticated, role, must_change_password } = await res.json();
-      if (!authenticated) setState("login");
-      else if (role === "admin" && !must_change_password) setState("in");
-      else setState("denied");
+      const { authenticated, role, mustChangePassword } = await res.json();
+      if (!authenticated) {
+        setState("login");
+      } else if (role !== "admin") {
+        setDenyReason("role");
+        setState("denied");
+      } else if (mustChangePassword) {
+        setDenyReason("password");
+        setState("denied");
+      } else {
+        setState("in");
+      }
     } catch {
       setState("login");
     }
-  };
+  }, []);
 
   useEffect(() => {
-    checkSession();
-  }, []);
+    void checkSession();
+  }, [checkSession]);
 
   if (state === "in") return <VisitorApp openCoords={null} analyticsEnabled={false} />;
 
@@ -48,7 +69,11 @@ export function PreviewGate() {
         <p className="geofence-text">{t("geofence_checking_session")}</p>
       ) : state === "denied" ? (
         <div className="preview-login" style={{ display: "flex" }}>
-          <p className="geofence-text">This account doesn&apos;t have access to preview.</p>
+          <p className="geofence-text">
+            {denyReason === "password"
+              ? "Set your own password at /admin/password before using preview."
+              : "This account doesn't have access to preview."}
+          </p>
           <button
             type="button"
             className="cta"
@@ -90,7 +115,7 @@ export function PreviewGate() {
           <div className="search">
             <input
               type="text"
-              placeholder="Username"
+              placeholder="Email"
               autoComplete="username"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
