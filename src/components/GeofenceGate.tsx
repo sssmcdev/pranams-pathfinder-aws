@@ -65,7 +65,13 @@ export function GeofenceGate({
             : err.code === err.POSITION_UNAVAILABLE
               ? "POSITION_UNAVAILABLE — no fix available (location services off, or no signal)."
               : "TIMEOUT — no fix within 8s.";
-        console.warn(`[geofence] ${reason}`, err);
+        // err.message carries the browser's own explanation, and it is the
+        // part that distinguishes the causes that share code 1: Chrome says
+        // "Only secure origins are allowed" for an insecure origin, and
+        // "User denied Geolocation" when it is really the permission. The
+        // object itself logs as [object GeolocationPositionError], so spell
+        // the message out rather than relying on the console to expand it.
+        console.warn(`[geofence] ${reason}${err.message ? ` (${err.message})` : ""}`, err);
         setState({ status: "blocked", message: t("geofence_no_location") });
       },
       { timeout: 8000, enableHighAccuracy: true },
