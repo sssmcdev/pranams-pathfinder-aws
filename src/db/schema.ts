@@ -20,7 +20,15 @@
  * fills the value in on insert from the app, exactly as Python did.
  */
 
-import { boolean, doublePrecision, index, integer, pgTable, varchar } from "drizzle-orm/pg-core";
+import {
+  boolean,
+  doublePrecision,
+  index,
+  integer,
+  pgTable,
+  uniqueIndex,
+  varchar,
+} from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
 export const pois = pgTable(
@@ -156,6 +164,38 @@ export const deviceFlags = pgTable(
   ],
 );
 
+/**
+ * An admin who can sign in to /admin, /analytics and /preview.
+ *
+ * The first table in this schema with no SQLAlchemy ancestor — the Python
+ * app had a single credential pair in the environment and no user table
+ * at all. That env pair still works as a break-glass account (see
+ * lib/session.ts); these rows are the ordinary way in.
+ *
+ * Conventions are carried over from the tables above rather than
+ * modernised, so this file stays internally consistent: varchar ISO-8601
+ * timestamps, and app-side defaults via $defaultFn with no server
+ * default. Passwords are never stored or accepted in plaintext — see
+ * hashPassword in lib/password.ts for the format of passwordHash.
+ */
+export const adminUsers = pgTable(
+  "admin_users",
+  {
+    id: varchar("id").primaryKey(),
+    /** Always stored lowercased and trimmed, so lookups can compare directly. */
+    email: varchar("email").notNull(),
+    passwordHash: varchar("password_hash").notNull(),
+    /** Set when an admin is created or has their password reset by another
+     *  admin; the sign-in flow blocks everything until they clear it. */
+    mustChangePassword: boolean("must_change_password").notNull().$defaultFn(() => true),
+    /** Deactivating keeps the audit trail that deleting would destroy. */
+    active: boolean("active").notNull().$defaultFn(() => true),
+    createdAt: varchar("created_at").notNull(),
+    lastLoginAt: varchar("last_login_at"),
+  },
+  (t) => [uniqueIndex("ix_admin_users_email").on(t.email)],
+);
+
 export const poisRelations = relations(pois, ({ many }) => ({
   subPlaces: many(subPlaces),
 }));
@@ -176,3 +216,5 @@ export type AnalyticsEvent = typeof analyticsEvents.$inferSelect;
 export type NewAnalyticsEvent = typeof analyticsEvents.$inferInsert;
 export type DeviceFlag = typeof deviceFlags.$inferSelect;
 export type NewDeviceFlag = typeof deviceFlags.$inferInsert;
+export type AdminUser = typeof adminUsers.$inferSelect;
+export type NewAdminUser = typeof adminUsers.$inferInsert;

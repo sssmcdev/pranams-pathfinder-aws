@@ -87,7 +87,9 @@ function RankList({
 }
 
 export default function AnalyticsPage() {
-  const [authState, setAuthState] = useState<"checking" | "login" | "in">("checking");
+  const [authState, setAuthState] = useState<
+    "checking" | "login" | "must-change-password" | "in"
+  >("checking");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState("");
@@ -103,8 +105,10 @@ export default function AnalyticsPage() {
     (async () => {
       try {
         const res = await fetch("/api/auth/session");
-        const { authenticated } = await res.json();
-        setAuthState(authenticated ? "in" : "login");
+        const { authenticated, mustChangePassword } = await res.json();
+        setAuthState(
+          !authenticated ? "login" : mustChangePassword ? "must-change-password" : "in",
+        );
       } catch {
         setAuthState("login");
       }
@@ -119,6 +123,12 @@ export default function AnalyticsPage() {
         setAuthState("login");
         return;
       }
+      // 403 is the account that still has to choose its own password;
+      // without this the {detail: …} body would be read as a dashboard.
+      if (res.status === 403) {
+        setAuthState("must-change-password");
+        return;
+      }
       setData(await res.json());
     } finally {
       setLoading(false);
@@ -127,7 +137,7 @@ export default function AnalyticsPage() {
 
   const loadDevices = useCallback(async () => {
     const res = await fetch("/api/analytics/devices");
-    if (res.status === 401) return;
+    if (res.status === 401 || res.status === 403) return;
     const body = await res.json();
     setDevices(body.devices ?? []);
   }, []);
@@ -143,6 +153,11 @@ export default function AnalyticsPage() {
       <div className="auth-gate">
         {authState === "checking" ? (
           <p className="muted">Checking session…</p>
+        ) : authState === "must-change-password" ? (
+          <p className="muted">
+            Your password was set by another administrator. Choose your own at{" "}
+            <a href="/admin/password">/admin/password</a> before opening the dashboard.
+          </p>
         ) : (
           <form
             className="login-form"
@@ -154,15 +169,16 @@ export default function AnalyticsPage() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ username, password }),
               });
-              if (res.ok) setAuthState("in");
-              else setLoginError("Invalid credentials.");
+              const body = await res.json().catch(() => ({}));
+              if (!res.ok) setLoginError("Invalid credentials.");
+              else setAuthState(body.mustChangePassword ? "must-change-password" : "in");
             }}
           >
             <h1>Prasanthi Path&nbsp;Finder Analytics</h1>
             <p className="muted">Admin sign-in required.</p>
             <input
               type="text"
-              placeholder="Username"
+              placeholder="Email"
               autoComplete="username"
               value={username}
               onChange={(e) => setUsername(e.target.value)}

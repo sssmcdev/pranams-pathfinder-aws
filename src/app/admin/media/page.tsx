@@ -1,11 +1,11 @@
 import { listMediaAdmin } from "@/lib/admin-service";
-import { isAuthenticated } from "@/lib/session";
+import { adminPageAllowed } from "@/lib/session";
 import { Thumb } from "@/components/admin/fields";
 
 export const dynamic = "force-dynamic";
 
 export default async function MediaPage() {
-  if (!(await isAuthenticated())) return null;
+  if (!(await adminPageAllowed())) return null;
   const rows = await listMediaAdmin();
   const legacy = rows.filter((r) => !r.url.startsWith("http")).length;
 

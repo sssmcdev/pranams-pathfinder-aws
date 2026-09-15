@@ -7,8 +7,14 @@ import { VisitorApp } from "@/components/VisitorApp";
 
 /**
  * /preview is a second entry point, off the home URL, for testing away
- * from the ashram: sign in with the admin credentials instead of proving
+ * from the ashram: sign in with any admin account instead of proving
  * location. It shares one session with /admin and /analytics.
+ *
+ * Unlike those two it does not hold an account still flagged
+ * mustChangePassword out: the visitor app below is read-only and shows
+ * nothing the person cannot already see by standing at the ashram, so
+ * making them set a password first would only obstruct the testing this
+ * route exists for.
  *
  * Analytics logging is disabled for everything below this gate — preview
  * traffic is admin and testing activity, not real visitors, and must
@@ -73,7 +79,7 @@ export function PreviewGate() {
           <div className="search">
             <input
               type="text"
-              placeholder="Username"
+              placeholder="Email"
               autoComplete="username"
               value={username}
               onChange={(e) => setUsername(e.target.value)}

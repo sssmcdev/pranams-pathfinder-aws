@@ -2,7 +2,7 @@ import Link from "next/link";
 
 import { CATEGORY_ADMIN_LABELS, FACILITY_TYPE_LABELS, type CategoryKey } from "@/lib/domain";
 import { listPoisAdmin } from "@/lib/admin-service";
-import { isAuthenticated } from "@/lib/session";
+import { adminPageAllowed } from "@/lib/session";
 import { Thumb } from "@/components/admin/fields";
 import { DeleteButton } from "@/components/admin/DeleteButton";
 
@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 export default async function PoisPage() {
   // The shell renders a login form when unauthenticated; return early so
   // this page never queries the database for a signed-out visitor.
-  if (!(await isAuthenticated())) return null;
+  if (!(await adminPageAllowed())) return null;
   const rows = await listPoisAdmin();
 
   return (

@@ -1,11 +1,11 @@
 import { listPoisAdmin } from "@/lib/admin-service";
-import { isAuthenticated } from "@/lib/session";
+import { adminPageAllowed } from "@/lib/session";
 import { SubPlaceForm } from "@/components/admin/SubPlaceForm";
 
 export const dynamic = "force-dynamic";
 
 export default async function NewSubPlacePage() {
-  if (!(await isAuthenticated())) return null;
+  if (!(await adminPageAllowed())) return null;
   const pois = await listPoisAdmin();
   return (
     <>

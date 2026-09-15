@@ -5,9 +5,14 @@ import { cookies } from "next/headers";
 
 /**
  * Replaces starlette's SessionMiddleware + the AdminAuth backend in
- * backend/app/admin.py. One admin credential, shared by /admin,
- * /analytics and /preview — signing in once grants all three, exactly as
- * the single `authenticated` session flag did before.
+ * backend/app/admin.py. Signing in once grants /admin, /analytics and
+ * /preview alike, exactly as the single `authenticated` session flag did
+ * before — there are no per-area permissions.
+ *
+ * Accounts now live in the admin_users table (see lib/admin-users.ts).
+ * The ADMIN_USER / ADMIN_PASSWORD pair below is kept as a break-glass
+ * account: it is how the first admin row gets created on a fresh
+ * database, and how you get back in if every stored password is lost.
  *
  * iron-session encrypts the cookie rather than merely signing it, so
  * unlike the previous itsdangerous cookie its contents are opaque to the
@@ -16,6 +21,16 @@ import { cookies } from "next/headers";
 
 export interface SessionData {
   authenticated?: boolean;
+  /**
+   * The signed-in admin's email, or null/undefined for the env
+   * break-glass account, which has no row and therefore no email. Code
+   * that needs an identity must handle that absence rather than assume
+   * one — `authenticated` remains the only thing the guards check.
+   *
+   * Sessions issued before this field existed decrypt fine and simply
+   * lack it, which is the same as the break-glass case.
+   */
+  email?: string | null;
 }
 
 const DEV_PASSWORD = "prasanthi2026";
@@ -79,11 +94,24 @@ export async function isAuthenticated(): Promise<boolean> {
 }
 
 /**
- * Constant-time-ish credential check. Node's timingSafeEqual needs equal
- * lengths, so compare digests rather than the raw strings — otherwise the
- * comparison leaks the password length.
+ * The signed-in admin's email, or null when the session belongs to the
+ * env break-glass account (or predates emails entirely). Never throws for
+ * a signed-out visitor — callers gate on isAuthenticated first.
  */
-export async function verifyCredentials(username: unknown, password: unknown): Promise<boolean> {
+export async function currentAdminEmail(): Promise<string | null> {
+  const session = await getSession();
+  return session.authenticated ? (session.email ?? null) : null;
+}
+
+/**
+ * The env break-glass credential check, not the ordinary one — stored
+ * admin accounts are verified by authenticateAdmin in lib/admin-users.ts.
+ *
+ * Constant-time-ish. Node's timingSafeEqual needs equal lengths, so
+ * compare digests rather than the raw strings — otherwise the comparison
+ * leaks the password length.
+ */
+export async function verifyEnvCredentials(username: unknown, password: unknown): Promise<boolean> {
   if (typeof username !== "string" || typeof password !== "string") return false;
   const { createHash, timingSafeEqual } = await import("node:crypto");
   const digest = (s: string) => createHash("sha256").update(s).digest();
@@ -98,6 +126,68 @@ export function unauthorized() {
   return Response.json({ detail: "Admin login required" }, { status: 401 });
 }
 
+/**
+ * Whether the current session may act as an admin, and if not, why.
+ *
+ * Three things fail, and they are deliberately decided in one place
+ * rather than duplicated across routes and pages:
+ *
+ *   - "anonymous": no session at all;
+ *   - "anonymous": a session for an account since deactivated or deleted,
+ *     which is how removing an admin ends the sessions they already hold;
+ *   - "must-change-password": the account is still flagged. The flag means
+ *     the password is known to whoever set it, so it is not yet proof of
+ *     identity.
+ *
+ * The env break-glass account has no row, so it is simply "ok".
+ *
+ * admin-users is imported lazily so that merely importing this module
+ * does not drag the database client in with it.
+ */
+export type AdminStatus = "ok" | "anonymous" | "must-change-password";
+
+export async function adminStatus(): Promise<AdminStatus> {
+  const session = await getSession();
+  if (!session.authenticated) return "anonymous";
+
+  const email = session.email;
+  if (!email) return "ok";
+
+  const { getAdminByEmail } = await import("./admin-users");
+  const admin = await getAdminByEmail(email);
+  if (!admin || !admin.active) return "anonymous";
+  return admin.mustChangePassword ? "must-change-password" : "ok";
+}
+
+/**
+ * The gate for every admin and analytics endpoint — adminRoute wraps it,
+ * and the analytics routes call it directly. A flagged account is refused
+ * here so the forced password change cannot be skipped by calling the API
+ * directly; AdminShell shows the change screen long before this is
+ * reachable in a browser.
+ *
+ * /api/auth/password does NOT go through here — it is the one endpoint a
+ * flagged account has to be able to reach.
+ */
 export async function requireAdmin(): Promise<Response | null> {
-  return (await isAuthenticated()) ? null : unauthorized();
+  switch (await adminStatus()) {
+    case "ok":
+      return null;
+    case "must-change-password":
+      return Response.json(
+        { detail: "Set your own password before using the admin panel" },
+        { status: 403 },
+      );
+    default:
+      return unauthorized();
+  }
+}
+
+/**
+ * The server-component equivalent, used by the /admin pages so a flagged
+ * or revoked session never has admin data rendered into its HTML — the
+ * pages return null and AdminShell paints the right screen over the top.
+ */
+export async function adminPageAllowed(): Promise<boolean> {
+  return (await adminStatus()) === "ok";
 }

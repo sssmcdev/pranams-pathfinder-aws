@@ -1,14 +1,14 @@
 import Link from "next/link";
 
 import { listPoisAdmin, listSubPlacesAdmin } from "@/lib/admin-service";
-import { isAuthenticated } from "@/lib/session";
+import { adminPageAllowed } from "@/lib/session";
 import { Thumb } from "@/components/admin/fields";
 import { DeleteButton } from "@/components/admin/DeleteButton";
 
 export const dynamic = "force-dynamic";
 
 export default async function SubPlacesPage() {
-  if (!(await isAuthenticated())) return null;
+  if (!(await adminPageAllowed())) return null;
   const [rows, pois] = [await listSubPlacesAdmin(), await listPoisAdmin()];
   const names = new Map(pois.map((p) => [p.id, p.name]));
 

@@ -1,10 +1,10 @@
 import { listDeviceFlagsAdmin } from "@/lib/admin-service";
-import { isAuthenticated } from "@/lib/session";
+import { adminPageAllowed } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
 export default async function FlagsPage() {
-  if (!(await isAuthenticated())) return null;
+  if (!(await adminPageAllowed())) return null;
   const rows = await listDeviceFlagsAdmin();
 
   return (
